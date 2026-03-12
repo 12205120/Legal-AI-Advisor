@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* 1. PROFESSIONAL COLOR PALETTE */
+@theme {
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-master-sidebar: #020617;
+  --color-accent-blue: #2563eb;
+}
+
+/* 2. CORE LAYOUT STABILIZERS */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 3. ORIGINAL COMPONENT STYLING */
+/* Side-by-Side Video Containers */
+.video-feed-container {
+  position: relative;
+  border-radius: 30px;
+  border-width: 2px;
+  border-color: #1e293b; /* slate-800 */
+  background-color: #0f172a; /* slate-900 */
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Professional White Panels */
+.glass-card {
+  background-color: white;
+  border: 1px solid #e2e8f0; /* slate-200 */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border-radius: 40px;
+}
+.glow-capture {
+  overflow: visible !important;
+  perspective: 1000px;
+}
+
+/* 4. ANIMATIONS */
+@keyframes zoom-in-95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-in {
+  animation: zoom-in-95 0.3s ease-out forwards;
+}
+
+/* 5. SCROLLBAR HIDING */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
