@@ -42,7 +42,7 @@ export default function LogicSolver() {
     setResponse("Analyzing case...");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/logic_solver", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/logic_solver`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario: input }),

@@ -21,8 +21,12 @@ export default function Virtual() {
   const [saraVideoUrl, setSaraVideoUrl] = useState("");
   const [userMessage, setUserMessage] = useState("");
   const [isLoadingScenario, setIsLoadingScenario] = useState(false);
+  const [showSubtitles, setShowSubtitles] = useState(true);
   
   const wsRef = useRef<WebSocket | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const indianLaws = [
     "CONSTITUTIONAL LAW",
@@ -44,22 +48,40 @@ export default function Virtual() {
   const startCourtSession = async () => {
     setShowLinkModal(false);
     setSetupPhase(false);
-    
-    // Fetch scenario
-    setIsLoadingScenario(true);
-    setScenario("Generating scenario...");
-    try {
-      const res = await fetch("http://127.0.0.1:8000/generate_scenario", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ law: selectedLaw }),
-      });
-      const data = await res.json();
-      setScenario(data.scenario || "Scenario generation failed.");
-    } catch (e) {
-      setScenario("Failed to connect to backend for scenario generation. Make sure the backend gives a proper 200 response.");
+
+    // Setup Web Speech API for Mic
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-IN';
+      
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        // Update user message input directly
+        if (finalTranscript) {
+           setUserMessage(prev => (prev + " " + finalTranscript).trim());
+        }
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setMicOn(false);
+      };
+      
+      recognitionRef.current = recognition;
     }
-    setIsLoadingScenario(false);
 
     // Initial Transcript
     setTranscript([
@@ -68,7 +90,8 @@ export default function Virtual() {
     ]);
 
     // Connect WS
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/legal_debate");
+    const wsUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000').replace('http', 'ws');
+    const ws = new WebSocket(`${wsUrl}/ws/legal_debate`);
     ws.onopen = () => console.log("Connected to virtual court WS");
     ws.onmessage = (event) => {
       try {
@@ -87,8 +110,79 @@ export default function Virtual() {
   };
 
   useEffect(() => {
-    return () => wsRef.current?.close();
+    return () => {
+      wsRef.current?.close();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch(e) {}
+      }
+    };
   }, []);
+
+  // Fetch Scenario on Law Change
+  useEffect(() => {
+    if (setupPhase) {
+      const fetchScenario = async () => {
+        setIsLoadingScenario(true);
+        setScenario("Generating case scenario...");
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/generate_scenario`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ law: selectedLaw }),
+          });
+          const data = await res.json();
+          setScenario(data.scenario || "Scenario generation failed.");
+        } catch (e) {
+          setScenario("Failed to connect to backend for scenario generation. Make sure the backend gives a proper 200 response.");
+        }
+        setIsLoadingScenario(false);
+      };
+      fetchScenario();
+    }
+  }, [selectedLaw, setupPhase]);
+
+  // Handle Camera Toggle
+  useEffect(() => {
+    if (cameraOn) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.error("Error accessing camera:", err);
+          setCameraOn(false);
+          alert("Could not access camera. Please check permissions.");
+        });
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }
+  }, [cameraOn]);
+
+  // Handle Mic Toggle
+  useEffect(() => {
+    if (micOn && recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error("Speech recognition start error", e);
+      }
+    } else if (!micOn && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error("Speech recognition stop error", e);
+      }
+    }
+  }, [micOn]);
 
   const sendMessage = () => {
     if (!userMessage.trim()) return;
@@ -114,6 +208,17 @@ export default function Virtual() {
               >
                 {indianLaws.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
+            </div>
+
+            {/* Live Scenario Preview */}
+            <div className="bg-black/40 border border-cyan-500/30 rounded-xl p-4">
+               <label className="text-[10px] text-cyan-500 tracking-widest uppercase mb-2 block font-bold flex items-center justify-between">
+                 <span>Case Scenario (Auto-Generated)</span>
+                 {isLoadingScenario && <span className="text-cyan-400/50">Loading...</span>}
+               </label>
+               <div className={`text-sm text-white/80 leading-relaxed font-serif max-h-32 overflow-y-auto pr-2 custom-scrollbar ${isLoadingScenario ? 'animate-pulse opacity-50' : ''}`}>
+                 {scenario}
+               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
@@ -222,6 +327,8 @@ export default function Virtual() {
             setSetupPhase(true); 
             wsRef.current?.close();
             setSaraVideoUrl("");
+            setCameraOn(false);
+            setMicOn(false);
           }} 
           className="text-white/40 hover:text-white text-xs px-4 py-2 border border-white/10 rounded-lg transition-all"
         >
@@ -238,14 +345,25 @@ export default function Virtual() {
              <div className="text-xs text-white uppercase font-bold">{role}</div>
            </div>
            
-           <div className="flex-1 bg-black/50 flex items-center justify-center relative min-h-[250px]">
+           <div className="flex-1 bg-black/50 flex items-center justify-center relative min-h-[250px] overflow-hidden">
              {cameraOn ? (
-               <div className="absolute inset-0 flex items-center justify-center border-2 border-cyan-500/30 rounded-3xl m-2 bg-black/80 text-cyan-400/50 tracking-widest text-sm uppercase">
-                 [ CAMERA FEED LIVE ]
-               </div>
+               <video 
+                 ref={videoRef}
+                 autoPlay 
+                 playsInline 
+                 muted 
+                 className="absolute inset-0 w-full h-full object-cover rounded-xl border border-cyan-500/30 m-2 -z-0"
+               />
              ) : (
                <div className="w-24 h-24 rounded-full border border-white/10 flex items-center justify-center text-4xl text-white/20 bg-black">
                  👤
+               </div>
+             )}
+             
+             {cameraOn && (
+               <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/50 px-2 py-1 rounded border border-red-500/30">
+                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                 <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest">LIVE</div>
                </div>
              )}
            </div>
@@ -307,7 +425,17 @@ export default function Virtual() {
           </div>
 
           {/* SCENARIO & LIVE TRANSCRIPT */}
-          <div className="flex-1 bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex-1 bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)] relative">
+            
+            <div className="absolute top-4 right-6 z-10">
+              <button 
+                onClick={() => setShowSubtitles(!showSubtitles)}
+                className={`text-[10px] px-2 py-1 rounded border ${showSubtitles ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40'} transition-all`}
+              >
+                {showSubtitles ? 'SUBTITLES ON' : 'SUBTITLES OFF'}
+              </button>
+            </div>
+
             <div className="mb-4 pb-4 border-b border-white/10 text-sm text-white/70 leading-relaxed font-serif max-h-32 overflow-y-auto pr-2 custom-scrollbar">
               <span className="text-cyan-400 text-[10px] tracking-widest uppercase block mb-2 font-sans font-bold">Official Case Scenario:</span>
               <span className={isLoadingScenario ? "animate-pulse text-cyan-500/50" : ""}>
@@ -353,27 +481,39 @@ export default function Virtual() {
                      <video src={saraVideoUrl} autoPlay className="w-full h-full object-cover" />
                    ) : (
                      <img 
-                       src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=800" 
+                       src="/sara-human.jpg" 
                        alt="Sara" 
                        className="w-full h-full object-cover grayscale-[0.2]" 
                      />
                    )}
-                   <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center gap-[3px] h-6 opacity-60">
-                     {[...Array(12)].map((_, i) => (
-                       <motion.div 
-                         key={i} 
-                         animate={{ height: [2, Math.random() * 16 + 8, Math.random() * 8 + 4, Math.random() * 20 + 8, 2] }} 
-                         transition={{ repeat: Infinity, duration: 1.2 + Math.random(), delay: i * 0.1 }} 
-                         className="w-[4px] bg-purple-400 rounded-full" 
-                       />
-                     ))}
-                   </div>
+                   
+                   {/* Subtitles Overlay */}
+                   {showSubtitles && (
+                      <div className="absolute bottom-6 left-0 right-0 z-30 px-6 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+                         <div className="bg-black/80 px-4 py-2 rounded-lg border border-purple-500/30 text-purple-100 text-sm font-medium text-center backdrop-blur-md">
+                            {transcript.filter(t => t.role === opponent).pop()?.text || "..."}
+                         </div>
+                      </div>
+                   )}
+                   
+                   {!saraVideoUrl && (
+                     <div className="absolute bottom-20 left-0 right-0 z-20 flex justify-center gap-[3px] h-6 opacity-60">
+                       {[...Array(12)].map((_, i) => (
+                         <motion.div 
+                           key={i} 
+                           animate={{ height: [2, Math.random() * 16 + 8, Math.random() * 8 + 4, Math.random() * 20 + 8, 2] }} 
+                           transition={{ repeat: Infinity, duration: 1.2 + Math.random(), delay: i * 0.1 }} 
+                           className="w-[4px] bg-purple-400 rounded-full" 
+                         />
+                       ))}
+                     </div>
+                   )}
                  </>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white/30 text-sm tracking-widest uppercase border-2 border-dashed border-white/5 rounded-3xl m-2 bg-black/80">
-                  <div className="text-4xl mb-4">⏳</div>
-                  <div className="animate-pulse">Waiting for Opponent...</div>
-                </div>
+                 <div className="w-full h-full flex flex-col items-center justify-center text-white/30 text-sm tracking-widest uppercase border-2 border-dashed border-white/5 rounded-3xl m-2 bg-black/80">
+                   <div className="text-4xl mb-4">⏳</div>
+                   <div className="animate-pulse">Waiting for Opponent...</div>
+                 </div>
               )}
            </div>
 

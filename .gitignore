@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python backend
+backend/venv/
+backend/__pycache__/
+backend/temp/
+backend/checkpoints/
+backend/.cache/
+backend/nyaya_index/
+backend/*.pyc

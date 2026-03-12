@@ -26,12 +26,21 @@ logger = logging.getLogger("NyayaAI_Neural_Engine")
 # 2. API ROTATOR
 # ==============================
 API_KEYS = [
-    "YOUR_KEY_1",
-    "YOUR_KEY_2",
-    "YOUR_KEY_3"
+    "AIzaSyD_EJKgWQrHOAjEwWJzK4lCtW7zAmfzF40",
+    "AIzaSyDrBIpRpC2iD9VS380LGhlpB0JHtiliFIQ",
+    "AIzaSyB-T7pm593-L-999iFmGzGUDPTF9umTw4g",
 ]
 
-MODEL_ID = "gemini-2.0-flash-lite"
+# Try these models in order until one works
+MODEL_FALLBACKS = [
+    "models/gemini-3-flash-preview",       # Newest & fastest
+    "models/gemini-3.1-flash-lite-preview", # Gemini 3.1 lite
+    "models/gemini-2.5-flash",             # Stable fallback
+    "models/gemini-2.0-flash",             # Older fallback
+    "models/gemini-flash-latest",           # Generic latest
+]
+
+MODEL_ID = MODEL_FALLBACKS[0]  # default
 
 class NeuralRotator:
     def __init__(self, keys):
@@ -44,6 +53,32 @@ class NeuralRotator:
         logger.info(f"Rotating to Key Index {self.index}")
         self.index = (self.index + 1) % len(self.keys)
         return client
+
+    def generate(self, prompt: str) -> str:
+        """Try all keys and models with exponential backoff. Returns text or raises."""
+        last_err = None
+        for key in self.keys:
+            client = genai.Client(api_key=key)
+            for model in MODEL_FALLBACKS:
+                for attempt in range(3):
+                    try:
+                        resp = client.models.generate_content(model=model, contents=prompt)
+                        logger.info(f"Success with key={key[:12]}... model={model}")
+                        return resp.text
+                    except Exception as e:
+                        last_err = e
+                        err_str = str(e)
+                        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                            wait = (2 ** attempt) * 2
+                            logger.warning(f"429 on {model} key={key[:12]}... waiting {wait}s")
+                            time.sleep(wait)
+                        elif "404" in err_str or "NOT_FOUND" in err_str:
+                            logger.warning(f"Model {model} not found, trying next")
+                            break  # try next model
+                        else:
+                            logger.error(f"Unexpected error: {err_str[:120]}")
+                            break
+        raise Exception(f"All keys and models exhausted. Last error: {last_err}")
 
 rotator = NeuralRotator(API_KEYS)
 
@@ -178,15 +213,31 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/generate_scenario")
 async def generate_scenario(data: dict):
     law = data.get("law", "criminal")
-    client = rotator.get_client()
-    prompt = f"Generate Indian case scenario under {law} law."
+    prompt = f"""You are an expert Indian Legal Case Author. Generate a highly realistic and detailed Indian court case scenario under {law}.
 
+Respond with ONLY a valid JSON object. No markdown, no code blocks.
+{{
+  "caseTitle": "Short case title, e.g., State v. Rajesh Kumar",
+  "caseNumber": "A realistic case number, e.g., Sessions Case No. 142/2024",
+  "court": "Relevant Indian court for this case",
+  "accusedName": "A realistic Indian name",
+  "victimName": "A realistic Indian name or 'The State' if applicable",
+  "sections": "Relevant IPC/BNS/Specific Act sections, e.g., IPC Section 302, 34",
+  "summary": "3-4 sentence narrative summary of the incident",
+  "prosecution": "Key arguments the prosecution will make",
+  "defense": "Key arguments the defense can raise",
+  "keyEvidence": "3 bullet points of key evidence in the case",
+  "charges": "Formal charges as stated by the court"
+}}"""
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        return {"scenario": resp.text}
+        text = rotator.generate(prompt).strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.startswith("```"): text = text[3:]
+        if text.endswith("```"): text = text[:-3]
+        return json.loads(text.strip())
     except Exception as e:
         logger.error(str(e))
-        return {"scenario": "AI system temporarily unavailable."}
+        return {"error": "AI system temporarily unavailable. Please try again in a moment."}
 
 
 @app.post("/upload_scenario")
@@ -204,67 +255,48 @@ async def upload_scenario(file: UploadFile = File(...)):
 @app.post("/logic_solver")
 async def logic_solver(data: dict):
     scenario = data.get("scenario")
-    client = rotator.get_client()
-    prompt = f"Analyze this case legally:\n{scenario}"
-
+    prompt = f"You are a senior Indian lawyer. Analyze this case legally and provide section-wise analysis, arguments for both sides, and likely verdict:\n{scenario}"
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        return {"analysis": resp.text}
+        return {"analysis": rotator.generate(prompt)}
     except Exception as e:
         logger.error(str(e))
-        return {"analysis": "AI system temporarily unavailable."}
+        return {"analysis": "AI system temporarily unavailable. Please try again."}
 
 
 @app.post("/generate_assessment")
 async def generate_assessment(data: dict):
     law = data.get("law", "criminal")
     difficulty = data.get("difficulty", "beginner")
-    client = rotator.get_client()
-    prompt = f"""Generate 1 MCQ on Indian {law} law at a {difficulty} difficulty level.
+    prompt = f"""Generate 1 challenging MCQ on Indian {law} law at a {difficulty} difficulty level. The question must test practical legal knowledge.
 You must respond with ONLY a valid JSON object. Do not include any markdown formatting or code blocks like ```json.
 The JSON object must have the following exact keys:
 {{
-  "question": "The question text here",
+  "question": "The question text here - make it specific and practical",
   "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
   "correctAnswer": "The exact text of the correct option here",
-  "explanation": "Detailed explanation of why this is correct based on the law"
+  "explanation": "Detailed 3-4 sentence explanation citing specific sections, case laws, or legal principles"
 }}"""
-
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        text = resp.text.strip()
-        
-        # Remove markdown if the model hallucinates it despite instructions
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-            
-        text = text.strip()
-            
-        # Parse it to ensure it's valid JSON before sending to frontend
-        parsed_json = json.loads(text)
-        return parsed_json
+        text = rotator.generate(prompt).strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.startswith("```"): text = text[3:]
+        if text.endswith("```"): text = text[:-3]
+        return json.loads(text.strip())
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON: {e} - Raw text: {resp.text}")
+        logger.error(f"Failed to parse JSON: {e}")
         return {"error": "Failed to generate a valid question format. Please try again."}
     except Exception as e:
         logger.error(str(e))
-        return {"error": "AI system temporarily unavailable."}
+        return {"error": "AI system temporarily unavailable. Please try again."}
 
 
 @app.post("/virtual_court")
 async def virtual_court(data: dict):
     scenario = data.get("scenario")
     role = data.get("role", "judge")
-    client = rotator.get_client()
     prompt = f"Simulate Indian court as {role}. Case:\n{scenario}"
-
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        return {"simulation": resp.text}
+        return {"simulation": rotator.generate(prompt)}
     except Exception as e:
         logger.error(str(e))
         return {"simulation": "AI system temporarily unavailable."}
@@ -275,10 +307,36 @@ async def get_library(topic: str):
     return {"content": LEGAL_LIBRARY.get(topic.lower(), "Not found")}
 
 
+@app.post("/library_search")
+async def library_search(data: dict):
+    query = data.get("query", "")
+    prompt = f"""You are an expert Indian Legal Scholar with deep knowledge of all Indian laws, acts, and constitutional provisions.
+The user wants to learn about: "{query}"
+
+Provide a comprehensive, well-structured legal explanation. Respond with ONLY a valid JSON object. No markdown, no code blocks.
+{{
+  "title": "Clear topic title",
+  "overview": "2-3 sentence overview of the legal concept",
+  "keyProvisions": ["Key provision 1", "Key provision 2", "Key provision 3", "Key provision 4", "Key provision 5"],
+  "relevantSections": "Specific sections/articles from the act or constitution",
+  "landmarkCases": [{{"name": "Case name", "ruling": "One-sentence ruling summary"}}],
+  "practicalImplication": "How this law affects common citizens in practice",
+  "recentAmendments": "Any recent amendments or changes (BNS, BNSS, BSA etc.)"
+}}"""
+    try:
+        text = rotator.generate(prompt).strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.startswith("```"): text = text[3:]
+        if text.endswith("```"): text = text[:-3]
+        return json.loads(text.strip())
+    except Exception as e:
+        logger.error(str(e))
+        return {"error": "AI library system temporarily unavailable. Please try again."}
+
+
 @app.post("/map_law")
 async def map_law(data: dict):
     query = data.get("query", "")
-    client = rotator.get_client()
     prompt = f"""You are an expert Indian Legal Assistant. The user wants to map a law related to: "{query}".
 Identify the relevant Indian Penal Code (IPC) section and its new equivalent in the Bharatiya Nyaya Sanhita (BNS).
 You must respond with ONLY a valid JSON object. Do not include any markdown formatting or code blocks like ```json.
@@ -290,34 +348,33 @@ The JSON object must have the following exact keys:
   "punishment": "Brief description of the punishment",
   "difference": "A brief explanation of what changed in the BNS version compared to IPC"
 }}"""
-
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        text = resp.text.strip()
-        
+        text = rotator.generate(prompt).strip()
         if text.startswith("```json"): text = text[7:]
         if text.startswith("```"): text = text[3:]
         if text.endswith("```"): text = text[:-3]
-        text = text.strip()
-            
-        return json.loads(text)
+        return json.loads(text.strip())
     except Exception as e:
         logger.error(str(e))
         return {"error": "AI mapping temporarily unavailable."}
 
 @app.post("/suggest_bail")
 async def suggest_bail(data: dict):
+    applicant_name = data.get("applicant_name", "[Applicant Name]")
+    id_number = data.get("id_number", "[ID Number]")
     case_description = data.get("case_description", "")
     client = rotator.get_client()
     prompt = f"""You are an expert Indian Defense Lawyer. Analyze this case and suggest the appropriate bail:
 Case: "{case_description}"
+Applicant Name: "{applicant_name}"
+Applicant ID: "{id_number}"
 
 You must respond with ONLY a valid JSON object. Do not include any markdown formatting or code blocks.
 The JSON object must have the following exact keys:
 {{
   "bailType": "e.g., Anticipatory Bail, Regular Bail, Default Bail",
   "reason": "Explain legally why this bail type is most appropriate for this case",
-  "draftTemplate": "Provide a complete, formal bail application draft template (around 150-200 words). Include placeholder brackets like [Court Name], [Applicant Name], etc., so the user can edit it."
+  "draftTemplate": "Provide a complete, formal bail application ready for court submission (300-400 words) written in formal legal English. Include standard Indian legal headers like 'IN THE COURT OF THE SESSIONS JUDGE', the title 'BAIL APPLICATION UNDER SECTION [APPROPRIATE SECTION]', and formal numbered paragraphs. Explicitly replace ALL applicant name placeholders with '{applicant_name}' and ID placeholders with '{id_number}'. Rewrite the raw case description into a highly formal, professional legal tone suitable for court."
 }}"""
 
     try:

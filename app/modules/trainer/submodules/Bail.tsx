@@ -11,22 +11,28 @@ interface BailData {
 
 export default function Bail() {
   const [caseDescription, setCaseDescription] = useState("");
+  const [applicantName, setApplicantName] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [bailResult, setBailResult] = useState<BailData | null>(null);
   const [draftContent, setDraftContent] = useState("");
 
   const handleSuggestBail = async () => {
-    if (!caseDescription.trim()) return;
+    if (!caseDescription.trim() || !applicantName.trim() || !idNumber.trim()) return;
     
     setLoading(true);
     setBailResult(null);
     setDraftContent("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/suggest_bail", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/suggest_bail`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ case_description: caseDescription }),
+        body: JSON.stringify({ 
+          case_description: caseDescription,
+          applicant_name: applicantName,
+          id_number: idNumber
+        }),
       });
       const data = await res.json();
       setBailResult(data);
@@ -81,6 +87,28 @@ export default function Bail() {
 
       {/* Input Section */}
       <div className="space-y-4 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+            <input
+              type="text"
+              placeholder="Applicant Name"
+              className="relative w-full p-4 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-mono"
+              value={applicantName}
+              onChange={(e) => setApplicantName(e.target.value)}
+            />
+          </div>
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+            <input
+              type="text"
+              placeholder="ID Number (e.g., Aadhar/PAN/Passport)"
+              className="relative w-full p-4 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-mono"
+              value={idNumber}
+              onChange={(e) => setIdNumber(e.target.value)}
+            />
+          </div>
+        </div>
         <div className="relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
           <textarea
