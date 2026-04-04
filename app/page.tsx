@@ -6,6 +6,7 @@ import FuturisticLayout from "./components/layout/FuturisticLayout";
 import TrainerModule from "./modules/trainer/TrainerModule";
 import Mapper from "./modules/trainer/submodules/Mapper";
 import Bail from "./modules/trainer/submodules/Bail";
+import ProfileModule from "./modules/profile/ProfileModule";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("trainer");
@@ -37,7 +38,7 @@ export default function Home() {
         
         {activeTab === "mapper" && <Mapper />}
         {activeTab === "bail" && <Bail />}
-        {activeTab === "profile" && <div className="text-white">Profile Module Coming Soon</div>}
+        {activeTab === "profile" && <ProfileModule />}
         
       </motion.div>
     </FuturisticLayout>

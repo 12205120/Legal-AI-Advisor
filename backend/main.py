@@ -10,7 +10,10 @@ import subprocess
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from google import genai
+import smtplib
+from email.mime.text import MIMEText
 import edge_tts
 import torch
 
@@ -33,11 +36,11 @@ API_KEYS = [
 
 # Try these models in order until one works
 MODEL_FALLBACKS = [
-    "models/gemini-3-flash-preview",       # Newest & fastest
-    "models/gemini-3.1-flash-lite-preview", # Gemini 3.1 lite
-    "models/gemini-2.5-flash",             # Stable fallback
-    "models/gemini-2.0-flash",             # Older fallback
-    "models/gemini-flash-latest",           # Generic latest
+    "gemini-2.0-flash",            # Fast & stable
+    "gemini-2.0-flash-lite",       # Lite version
+    "gemini-1.5-flash",            # Reliable fallback
+    "gemini-1.5-flash-latest",     # Latest 1.5
+    "gemini-1.5-pro",              # Pro fallback
 ]
 
 MODEL_ID = MODEL_FALLBACKS[0]  # default
@@ -55,30 +58,26 @@ class NeuralRotator:
         return client
 
     def generate(self, prompt: str) -> str:
-        """Try all keys and models with exponential backoff. Returns text or raises."""
+        """Turbo-optimized API call. Fails fast without heavy time.sleep() to ensure lightning-fast responses like the web client."""
         last_err = None
-        for key in self.keys:
-            client = genai.Client(api_key=key)
-            for model in MODEL_FALLBACKS:
-                for attempt in range(3):
-                    try:
-                        resp = client.models.generate_content(model=model, contents=prompt)
-                        logger.info(f"Success with key={key[:12]}... model={model}")
-                        return resp.text
-                    except Exception as e:
-                        last_err = e
-                        err_str = str(e)
-                        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                            wait = (2 ** attempt) * 2
-                            logger.warning(f"429 on {model} key={key[:12]}... waiting {wait}s")
-                            time.sleep(wait)
-                        elif "404" in err_str or "NOT_FOUND" in err_str:
-                            logger.warning(f"Model {model} not found, trying next")
-                            break  # try next model
-                        else:
-                            logger.error(f"Unexpected error: {err_str[:120]}")
-                            break
-        raise Exception(f"All keys and models exhausted. Last error: {last_err}")
+        # Try maximum 2 rapid attempts
+        for attempt in range(2):
+            for key in self.keys:
+                client = genai.Client(api_key=key)
+                try:
+                    # Explicitly use gemini-1.5-flash for maximum speed to mimic web speed
+                    resp = client.models.generate_content(
+                        model="gemini-1.5-flash", 
+                        contents=prompt,
+                        config={"temperature": 0.3} # Optimize speed
+                    )
+                    logger.info(f"Turbo execution success with key={key[:12]}...")
+                    return resp.text
+                except Exception as e:
+                    last_err = e
+                    logger.warning(f"Key failed, swapping instantly. Err: {str(e)[:40]}")
+                    
+        raise Exception(f"All fast attempts exhausted. Last error: {last_err}")
 
 rotator = NeuralRotator(API_KEYS)
 
@@ -108,51 +107,73 @@ LEGAL_LIBRARY = {
 class IndianLegalSlangEngine:
     def __init__(self):
         self.slang_map = {
-            "lawyer": ["Vakil Sahab", "Counsel"],
-            "document": ["Vakalatnama", "Parcha"]
+            "lawyer": ["Vakil Sahab", "Counsel", "Advocate", "learned friend"],
+            "document": ["Vakalatnama", "Parcha", "affidavit", "evidence"]
         }
 
     def inject_slang(self, text):
+        # Only inject if not already using formal terms to avoid over-cluttering
+        if "Milord" in text or "Counsel" in text:
+            return text
+        
         slang_l = random.choice(self.slang_map["lawyer"])
-        slang_d = random.choice(self.slang_map["document"])
-        return f"Ji {slang_l}, {text}. Ensure the {slang_d} is processed."
+        return f"Milord, {text}"
 
 slang_engine = IndianLegalSlangEngine()
 
 # ==============================
 # 5. TTS + VIDEO
 # ==============================
-async def generate_sara_voice_and_video(text, output_id):
+async def generate_sara_audio(text: str, output_id: str) -> str | None:
+    """Generate TTS audio using edge-tts and return base64 data URI."""
     audio_path = f"temp/{output_id}.mp3"
-    video_path = f"temp/{output_id}.mp4"
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    logger.info(f"Hardware: {device}")
-
     try:
         communicate = edge_tts.Communicate(text, "en-IN-NeerjaNeural")
         await communicate.save(audio_path)
-
-        cmd = [
-            "python", "Wav2Lip/inference.py",
-            "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
-            "--face", "public/sara-human.jpg",
-            "--audio", audio_path,
-            "--outfile", video_path,
-            "--nosmooth"
-        ]
-
-        process = await asyncio.create_subprocess_exec(*cmd)
-        await process.wait()
-
-        if os.path.exists(video_path):
-            with open(video_path, "rb") as f:
-                encoded = base64.b64encode(f.read()).decode()
-            return f"data:video/mp4;base64,{encoded}"
+        with open(audio_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        return f"data:audio/mp3;base64,{encoded}"
     except Exception as e:
-        logger.error(f"Video generation error: {e}")
-
+        logger.error(f"TTS audio error: {e}")
     return None
+
+
+async def generate_sara_voice_and_video(text, output_id):
+    """Try Wav2Lip video first; fall back to audio-only."""
+    audio_path = f"temp/{output_id}.mp3"
+    video_path = f"temp/{output_id}.mp4"
+
+    checkpoint = "checkpoints/wav2lip_gan.pth"
+    face_img = "public/sara-human.jpg"
+    checkpoint_valid = os.path.exists(checkpoint) and os.path.getsize(checkpoint) > 1_000_000
+    face_valid = os.path.exists(face_img)
+
+    # Generate audio first (always)
+    audio_b64 = await generate_sara_audio(text, output_id)
+
+    # Try video if weights are ready
+    if checkpoint_valid and face_valid:
+        try:
+            cmd = [
+                "python", "Wav2Lip/inference.py",
+                "--checkpoint_path", checkpoint,
+                "--face", face_img,
+                "--audio", audio_path,
+                "--outfile", video_path,
+                "--nosmooth"
+            ]
+            process = await asyncio.create_subprocess_exec(*cmd)
+            await process.wait()
+            if os.path.exists(video_path):
+                with open(video_path, "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode()
+                return f"data:video/mp4;base64,{encoded}", audio_b64
+        except Exception as e:
+            logger.warning(f"Wav2Lip failed, using audio-only: {e}")
+    else:
+        logger.info("Wav2Lip weights not ready — using audio-only mode")
+
+    return None, audio_b64
 
 # ==============================
 # 6. FASTAPI INIT
@@ -178,29 +199,63 @@ app.add_middleware(
 @app.websocket("/ws/legal_debate")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    history = []
+    scenario = "No scenario provided"
+    user_role = "Victim" # Default
+    
     try:
         while True:
             data = await websocket.receive_text()
             payload = json.loads(data)
-            query = payload.get("query", "")
+            
+            # Check for setup context
+            if "setup" in payload:
+                scenario = payload.get("scenario", scenario)
+                user_role = payload.get("role", user_role)
+                logger.info(f"Session setup: Role={user_role}")
+                continue
 
+            query = payload.get("query", "")
+            history.append({"role": "user", "content": query})
+
+            # Persona: If user is "Accused", Sara is the Public Prosecutor (Prosecution).
+            # If user is "Victim/Complainant", Sara is the Defense Counsel.
+            sara_role = "Public Prosecutor (Prosecution)" if user_role == "Accused" else "Defense Counsel"
+            
+            prompt = f"""
+You are Senior Counsel Sara, representing the {sara_role} in an Indian Court.
+Case Scenario: {scenario}
+
+Current Conversation History:
+{json.dumps(history[-5:], indent=2)}
+
+YOUR GOAL: 
+1. Argue aggressively but professionally as the {sara_role}.
+2. Use courtroom language: "Milord", "My learned friend", "Objection", "With due respect".
+3. Reference specific facts from the Case Scenario to counter the opponent's claims.
+4. Keep your response concise (under 80 words) and high-impact.
+5. If the opponent says something weak, point it out.
+
+Respond to the latest argument now.
+"""
             try:
-                client = rotator.get_client()
-                resp = client.models.generate_content(
-                    model=MODEL_ID,
-                    contents=f"Respond as Senior Counsel Sara to: {query}"
-                )
-                ai_text = resp.text
+                ai_text = rotator.generate(prompt)
             except Exception as e:
                 logger.error(str(e))
-                ai_text = "Judicial system temporarily offline."
+                ai_text = "Milord, the prosecution require a brief adjournment. [Backend connectivity lost]."
 
+            history.append({"role": "assistant", "content": ai_text})
+            
+            # Clean up text from potential markdown if LLM adds any
+            ai_text = ai_text.replace("**", "").replace("#", "").strip()
+            
             final_text = slang_engine.inject_slang(ai_text)
-            video_url = await generate_sara_voice_and_video(final_text, str(int(time.time())))
+            output_id = str(int(time.time()))
+            audio_url = await generate_sara_audio(final_text, output_id)
 
             await websocket.send_json({
                 "message": final_text,
-                "url": video_url
+                "audio_url": audio_url
             })
 
     except WebSocketDisconnect:
@@ -391,6 +446,54 @@ The JSON object must have the following exact keys:
         logger.error(str(e))
         return {"error": "AI bail suggestion temporarily unavailable."}
 
+# ==============================
+# 9. AUTHENTICATION & OTP
+# ==============================
+class OTPRequest(BaseModel):
+    email: str
+
+otp_store = {}
+
+@app.post("/send_otp")
+async def send_otp(req: OTPRequest):
+    email = req.email
+    otp = str(random.randint(100000, 999999))
+    otp_store[email] = otp
+    
+    sender_email = os.environ.get("SENDER_EMAIL")
+    sender_password = os.environ.get("SENDER_PASSWORD")
+    
+    logger.info(f"Generated OTP for {email}: {otp}")
+    
+    if sender_email and sender_password:
+        try:
+            msg = MIMEText(f"Your Nyaya AI Secure OTP is: {otp}\n\nPlease enter this code in the portal to authenticate.")
+            msg['Subject'] = 'Nyaya AI - Security OTP'
+            msg['From'] = sender_email
+            msg['To'] = email
+
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            logger.info("OTP Email sent successfully via SMTP.")
+        except Exception as e:
+            logger.error(f"Failed to send email: {e}")
+            return {"status": "success", "message": "OTP generated in console (email failed)", "testing_otp": otp}
+    else:
+        logger.info("No SENDER_EMAIL or SENDER_PASSWORD in env. OTP printed to console only.")
+
+    return {"status": "success", "message": "OTP processed successfully."}
+
+@app.post("/verify_otp")
+async def verify_otp(data: dict):
+    email = data.get("email")
+    otp = data.get("otp")
+    if email in otp_store and str(otp_store[email]) == str(otp):
+        # Clear after successful verification
+        del otp_store[email]
+        return {"status": "verified"}
+    return {"status": "failed", "error": "Invalid OTP or Email"}
 
 if __name__ == "__main__":
     import uvicorn

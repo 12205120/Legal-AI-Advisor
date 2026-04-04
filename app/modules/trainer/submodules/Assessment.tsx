@@ -35,16 +35,24 @@ export default function Assessment() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ law: law, difficulty: difficulty }),
       });
+      if (!res.ok) throw new Error("Backend API Failed");
       const data = await res.json();
       
       if (data.error) {
-        setQuestionData({ error: data.error } as any);
+        throw new Error(data.error);
       } else {
         setQuestionData(data);
       }
     } catch (error) {
        console.error(error);
-       setQuestionData({ error: "Failed to connect to backend for assessment generation." } as any);
+       setTimeout(() => {
+         setQuestionData({
+           question: `[OFFLINE FALLBACK]: A simulated ${difficulty} question concerning ${law}. Which of the following is correct regarding the core premise of this law?`,
+           options: ["Option A: It is fundamentally strict.", "Option B: It is lenient in all cases.", "Option C: It depends on the case facts.", "Option D: None of the above"],
+           correctAnswer: "Option C: It depends on the case facts.",
+           explanation: "This is a simulated offline explanation because the backend AI is unavailable. In most cases under " + law + ", context is everything.",
+         });
+       }, 1000);
     } finally {
       setLoading(false);
     }

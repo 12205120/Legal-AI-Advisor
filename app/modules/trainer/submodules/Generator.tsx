@@ -44,11 +44,27 @@ export default function Generator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ law: selectedLaw }),
       });
+      if (!response.ok) throw new Error("Backend API Failed");
       const data = await response.json();
+      if (data.error) throw new Error(data.error);
       setScenario(data);
     } catch (error) {
       console.error("Failed to generate scenario:", error);
-      setScenario({ error: "Failed to connect to the backend AI engine." });
+      setTimeout(() => {
+        setScenario({
+          caseTitle: "State vs Simulated Participant (Offline)",
+          caseNumber: "CR-202X-00" + Math.floor(Math.random() * 99),
+          court: "Virtual Court (Offline Mode)",
+          accusedName: "John Doe (Simulated)",
+          victimName: "Jane Smith (Simulated)",
+          sections: "Relevant Sections of " + selectedLaw,
+          summary: "[OFFLINE FALLBACK]: The AI API is currently unreachable. This is a simulated offline scenario. The accused is formally charged under the legal domain of " + selectedLaw + " pending further investigation.",
+          prosecution: "The prosecution argues that the provided evidence clearly establishes fault beyond a reasonable doubt, relying on circumstantial factors.",
+          defense: "The defense vehemently opposes the charges, citing lack of direct evidence and procedural irregularities.",
+          keyEvidence: "- Exhibit A: Cyber logs\n- Exhibit B: Witness testimony\n- Exhibit C: Forensic report",
+          charges: "Multiple simulated charges under " + selectedLaw,
+        });
+      }, 1200);
     } finally {
       setLoading(false);
     }

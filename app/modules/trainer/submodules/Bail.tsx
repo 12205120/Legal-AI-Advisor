@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
+import { getBailApplications, saveBailApplication, deleteBailApplication, BailApplication } from "../../../lib/bail_store";
 
 interface BailData {
   bailType: string;
@@ -9,201 +10,395 @@ interface BailData {
   error?: string;
 }
 
+const BAIL_GROUNDS = [
+  "No prior criminal record",
+  "Permanent resident of jurisdiction",
+  "Sole breadwinner of family",
+  "Health/medical grounds",
+  "Investigation is complete",
+  "Willing to surrender passport",
+  "Willing to report to police station daily",
+  "Offence is bailable in nature",
+];
+
 export default function Bail() {
-  const [caseDescription, setCaseDescription] = useState("");
+  const [tab, setTab] = useState<"new" | "vault">("new");
+
+  // Form fields
   const [applicantName, setApplicantName] = useState("");
   const [idNumber, setIdNumber] = useState("");
+  const [firNumber, setFirNumber] = useState("");
+  const [policeStation, setPoliceStation] = useState("");
+  const [charges, setCharges] = useState("");
+  const [caseDescription, setCaseDescription] = useState("");
+  const [selectedGrounds, setSelectedGrounds] = useState<string[]>([]);
+
+  // Result
   const [loading, setLoading] = useState(false);
   const [bailResult, setBailResult] = useState<BailData | null>(null);
   const [draftContent, setDraftContent] = useState("");
+  const [savedMsg, setSavedMsg] = useState("");
+
+  // Vault
+  const [vault, setVault] = useState<BailApplication[]>([]);
+  const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setVault(getBailApplications());
+  }, [tab]);
+
+  const toggleGround = (g: string) =>
+    setSelectedGrounds((prev) =>
+      prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]
+    );
 
   const handleSuggestBail = async () => {
     if (!caseDescription.trim() || !applicantName.trim() || !idNumber.trim()) return;
-    
     setLoading(true);
     setBailResult(null);
     setDraftContent("");
+    setSavedMsg("");
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/suggest_bail`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          case_description: caseDescription,
-          applicant_name: applicantName,
-          id_number: idNumber
-        }),
-      });
-      const data = await res.json();
-      setBailResult(data);
-      if (data.draftTemplate) {
-        setDraftContent(data.draftTemplate);
-      }
-    } catch (error) {
-      console.error(error);
-      setBailResult({ error: "Failed to connect to Neural Engine for bail suggestion." } as any);
-    } finally {
+    const groundsText = selectedGrounds.length
+      ? `\n\nGrounds for bail: ${selectedGrounds.join(", ")}`
+      : "";
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/suggest_bail`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            case_description: `${caseDescription}${groundsText}\nFIR No: ${firNumber || "N/A"}, Police Station: ${policeStation || "N/A"}, Charges: ${charges || "N/A"}`,
+            applicant_name: applicantName,
+            id_number: idNumber,
+          }),
+        });
+        if (!res.ok) throw new Error("Backend API Failed");
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setBailResult(data);
+        if (data.draftTemplate) setDraftContent(data.draftTemplate);
+      } catch (error) {
+        console.error(error);
+        setTimeout(() => {
+          const fallbackBailType = charges.includes("Murder") || charges.includes("302") ? "Regular Bail (Non-Bailable Offense)" : "Anticipatory Bail / Regular Bail";
+          const draft = `IN THE COURT OF SESSIONS / HIGH COURT \n\nIN THE MATTER OF:\n${applicantName} ... APPLICANT\nVS.\nTHE STATE ... RESPONDENT\n\nFIR NO: ${firNumber || "N/A"}\nPOLICE STATION: ${policeStation || "N/A"}\nCHARGES: ${charges || "N/A"}\nID NUMBER: ${idNumber || "N/A"}\n\nBAIL APPLICATION UNDER SECTION 437/438/439 OF CrPC / SEC 482 of BNSS\n\nMOST RESPECTFULLY SHOWETH:\n1. That the applicant is innocent and has been falsely implicated.\n2. That there is no direct evidence linking the applicant.\n3. Case specific grounds: ${caseDescription}\n4. Additional Grounds: ${selectedGrounds.join(", ") || "None specified"}\n\nPRAYER:\nIn light of the above, it is prayed that the applicant be released on bail.\n\nPLACE: ______\nDATE: ______\n\nADVOCATE FOR APPLICANT`;
+          setBailResult({ 
+            bailType: fallbackBailType, 
+            reason: "[OFFLINE FALLBACK] Since the backend is down, this is an automated offline evaluation based on keywords. The applicant " + applicantName + " meets standard criteria for a bail hearing. Please review the offline drafted template.", 
+            draftTemplate: draft
+          });
+          setDraftContent(draft);
+        }, 1000);
+      } finally {
       setLoading(false);
     }
   };
 
-  const downloadPDF = () => {
+  const handleSaveToVault = () => {
+    if (!bailResult || bailResult.error || !draftContent) return;
+    saveBailApplication({
+      applicantName,
+      idNumber,
+      firNumber,
+      policeStation,
+      charges,
+      caseDescription,
+      bailType: bailResult.bailType,
+      reason: bailResult.reason,
+      draftTemplate: draftContent,
+    });
+    setSavedMsg("✅ Saved to Bail Vault!");
+    setVault(getBailApplications());
+    setTimeout(() => setSavedMsg(""), 3000);
+  };
+
+  const downloadPDF = (content: string) => {
     const doc = new jsPDF();
     const margin = 15;
     const maxLineWidth = 180;
-    const fontSize = 12;
-
+    const fontSize = 11;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(fontSize);
-    
-    const textLines = doc.splitTextToSize(draftContent, maxLineWidth);
-    
+    const lines = doc.splitTextToSize(content, maxLineWidth);
     let y = margin;
-    for (let i = 0; i < textLines.length; i++) {
-        if (y > 280) { // Check if we need a new page
-            doc.addPage();
-            y = margin;
-        }
-        doc.text(textLines[i], margin, y);
-        y += (fontSize * 1.5) / doc.internal.scaleFactor; // Add line height
+    for (const line of lines) {
+      if (y > 280) { doc.addPage(); y = margin; }
+      doc.text(line, margin, y);
+      y += (fontSize * 1.5) / doc.internal.scaleFactor;
     }
-    
     doc.save("Bail_Application_Draft.pdf");
   };
 
+  const selectedVault = vault.find((a) => a.id === selectedVaultId) ?? null;
+
   return (
-    <div className="bg-black/40 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500">
-      
-      {/* Header section */}
-      <div className="mb-8 border-b border-white/10 pb-4">
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 tracking-widest uppercase flex items-center gap-3">
-          <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          Automated Bail Drafting System
-        </h2>
-        <p className="text-white/60 text-sm mt-2">Submit case parameters for AI analysis. System will recommend optimal bail strategy and generate an editable legal draft.</p>
-      </div>
-
-      {/* Input Section */}
-      <div className="space-y-4 mb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-            <input
-              type="text"
-              placeholder="Applicant Name"
-              className="relative w-full p-4 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-mono"
-              value={applicantName}
-              onChange={(e) => setApplicantName(e.target.value)}
-            />
-          </div>
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-            <input
-              type="text"
-              placeholder="ID Number (e.g., Aadhar/PAN/Passport)"
-              className="relative w-full p-4 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-mono"
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value)}
-            />
-          </div>
+    <div className="bg-black/40 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+      {/* Header */}
+      <div className="mb-6 border-b border-white/10 pb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 tracking-widest uppercase flex items-center gap-3">
+            <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Bail Intelligence System
+          </h2>
+          <p className="text-white/50 text-sm mt-1">Draft, generate & present bail applications in Indian courts.</p>
         </div>
-        <div className="relative group">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-          <textarea
-            rows={4}
-            placeholder="Enter full case details, charges (IPC/BNS), and circumstances..."
-            className="relative w-full p-4 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all font-mono resize-none"
-            value={caseDescription}
-            onChange={(e) => setCaseDescription(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex justify-end">
-          <button
-            onClick={handleSuggestBail}
-            disabled={loading}
-            className="relative group overflow-hidden rounded-xl p-[1px] w-48"
-          >
-            <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 opacity-70 group-hover:opacity-100 transition-opacity duration-300"></span>
-            <div className="relative h-full flex items-center justify-center bg-black px-6 py-3 rounded-xl transition-all duration-300 group-hover:bg-opacity-0">
-              <span className="text-white font-semibold flex items-center gap-2 tracking-wider">
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Analyzing
-                  </>
-                ) : (
-                  <>
-                    Request Bail
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </>
-                )}
-              </span>
-            </div>
-          </button>
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {["new", "vault"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t as "new" | "vault")}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold tracking-widest uppercase transition-all ${
+                tab === t
+                  ? "bg-emerald-500/20 border border-emerald-400 text-emerald-300"
+                  : "bg-white/5 border border-white/10 text-white/50 hover:bg-white/10"
+              }`}
+            >
+              {t === "new" ? "📝 New Application" : `🗄 Vault (${vault.length})`}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Results Section */}
-      {bailResult && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-6">
-          {bailResult.error ? (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-mono text-center">
-              SYSTEM ERROR: {bailResult.error}
-            </div>
-          ) : (
-            <>
-              {/* Judicial Recommendation */}
-              <div className="p-6 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-start">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-600"></div>
-                
-                <div className="md:w-1/3 flex-shrink-0">
-                  <div className="inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase rounded mb-3">
-                    Recommended Action
-                  </div>
-                  <h3 className="text-3xl font-bold tracking-tight text-white">{bailResult.bailType}</h3>
-                </div>
-                
-                <div className="md:w-2/3 pl-0 md:pl-6 md:border-l border-white/10">
-                  <h4 className="text-sm text-teal-300 uppercase tracking-widest font-semibold mb-2">Legal Rationale</h4>
-                  <p className="text-white/80 leading-relaxed text-sm md:text-base">
-                    {bailResult.reason}
-                  </p>
-                </div>
+      {/* ── NEW APPLICATION TAB ── */}
+      {tab === "new" && (
+        <div className="space-y-6">
+          {/* Form Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { label: "Applicant Full Name", val: applicantName, set: setApplicantName, ph: "e.g., Rajesh Kumar" },
+              { label: "ID Number (Aadhaar/PAN/Passport)", val: idNumber, set: setIdNumber, ph: "e.g., AADHAAR 1234 5678 9012" },
+              { label: "FIR Number (if known)", val: firNumber, set: setFirNumber, ph: "e.g., FIR No. 142/2024" },
+              { label: "Police Station", val: policeStation, set: setPoliceStation, ph: "e.g., Lajpat Nagar PS, Delhi" },
+            ].map((field) => (
+              <div key={field.label} className="relative group">
+                <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">{field.label}</label>
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
+                <input
+                  type="text"
+                  placeholder={field.ph}
+                  className="relative w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm"
+                  value={field.val}
+                  onChange={(e) => field.set(e.target.value)}
+                />
               </div>
+            ))}
+          </div>
 
-              {/* Editable Draft Area */}
-              <div className="p-6 bg-gray-900/50 border border-gray-700/50 rounded-2xl relative">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-lg font-semibold text-white/90 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Generated Draft Editor
-                  </h4>
-                  <button
-                    onClick={downloadPDF}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Export PDF
-                  </button>
+          <div className="relative group">
+            <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">Charges (IPC/BNS Sections)</label>
+            <input
+              type="text"
+              placeholder="e.g., BNS 101 (Murder), IPC 420 (Cheating)"
+              className="w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm"
+              value={charges}
+              onChange={(e) => setCharges(e.target.value)}
+            />
+          </div>
+
+          <div className="relative group">
+            <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">Full Case Description</label>
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
+            <textarea
+              rows={4}
+              placeholder="Describe the case, circumstances of arrest, and key facts..."
+              className="relative w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm resize-none"
+              value={caseDescription}
+              onChange={(e) => setCaseDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Grounds for Bail */}
+          <div>
+            <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-2">Grounds for Bail (select all that apply)</label>
+            <div className="flex flex-wrap gap-2">
+              {BAIL_GROUNDS.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => toggleGround(g)}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${
+                    selectedGrounds.includes(g)
+                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                      : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                  }`}
+                >
+                  {selectedGrounds.includes(g) ? "✓ " : ""}{g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Generate Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSuggestBail}
+              disabled={loading}
+              className="relative group overflow-hidden rounded-xl p-[1px] w-56"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 opacity-70 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative h-full flex items-center justify-center bg-black px-6 py-3 rounded-xl transition-all duration-300 group-hover:bg-opacity-0">
+                <span className="text-white font-semibold flex items-center gap-2 tracking-wider">
+                  {loading ? (
+                    <><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />Generating Draft...</>
+                  ) : (
+                    <>⚖ Generate Bail Draft</>
+                  )}
+                </span>
+              </div>
+            </button>
+          </div>
+
+          {/* Result */}
+          {bailResult && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-5">
+              {bailResult.error ? (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-mono text-center">
+                  SYSTEM ERROR: {bailResult.error}
+                </div>
+              ) : (
+                <>
+                  {/* Recommendation Card */}
+                  <div className="p-6 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-start">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-600" />
+                    <div className="md:w-1/3 flex-shrink-0">
+                      <div className="inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase rounded mb-3">
+                        Recommended Action
+                      </div>
+                      <h3 className="text-2xl font-bold tracking-tight text-white">{bailResult.bailType}</h3>
+                    </div>
+                    <div className="md:w-2/3 pl-0 md:pl-6 md:border-l border-white/10">
+                      <h4 className="text-sm text-teal-300 uppercase tracking-widest font-semibold mb-2">Legal Rationale</h4>
+                      <p className="text-white/80 leading-relaxed text-sm">{bailResult.reason}</p>
+                    </div>
+                  </div>
+
+                  {/* Draft Editor */}
+                  <div className="p-6 bg-gray-900/50 border border-gray-700/50 rounded-2xl">
+                    <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+                      <h4 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Bail Draft (Editable)
+                      </h4>
+                      <div className="flex gap-2">
+                        {savedMsg ? (
+                          <span className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-sm rounded-lg">{savedMsg}</span>
+                        ) : (
+                          <button
+                            onClick={handleSaveToVault}
+                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                          >
+                            🗄 Save to Vault
+                          </button>
+                        )}
+                        <button
+                          onClick={() => downloadPDF(draftContent)}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+                        >
+                          ⬇ Export PDF
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      className="w-full h-96 p-4 bg-black/60 border border-white/10 rounded-xl text-white/90 font-mono text-sm leading-relaxed focus:outline-none focus:border-emerald-500/50 resize-y"
+                      value={draftContent}
+                      onChange={(e) => setDraftContent(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── VAULT TAB ── */}
+      {tab === "vault" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
+          {/* List */}
+          <div className="md:col-span-1 space-y-2 overflow-y-auto max-h-[600px] pr-1">
+            {vault.length === 0 ? (
+              <div className="text-center text-white/30 text-sm p-8 border border-white/5 rounded-2xl">
+                <div className="text-4xl mb-3">🗄</div>
+                No bail applications saved yet.<br />Generate one and click "Save to Vault".
+              </div>
+            ) : (
+              vault.map((app) => (
+                <div
+                  key={app.id}
+                  onClick={() => setSelectedVaultId(app.id)}
+                  className={`p-4 rounded-xl cursor-pointer border transition-all ${
+                    selectedVaultId === app.id
+                      ? "bg-emerald-500/15 border-emerald-400/50"
+                      : "bg-white/5 border-white/10 hover:border-white/20"
+                  }`}
+                >
+                  <div className="text-emerald-300 font-semibold text-sm">{app.applicantName}</div>
+                  <div className="text-white/50 text-xs mt-1">{app.bailType}</div>
+                  <div className="text-white/30 text-xs">{new Date(app.createdAt).toLocaleDateString("en-IN")}</div>
+                  {app.firNumber && <div className="text-white/30 text-xs">FIR: {app.firNumber}</div>}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Detail */}
+          <div className="md:col-span-2">
+            {!selectedVault ? (
+              <div className="h-full flex items-center justify-center text-white/20 text-sm border border-white/5 rounded-2xl">
+                ← Select an application to view
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{selectedVault.applicantName}</h3>
+                    <p className="text-emerald-400 text-sm">{selectedVault.bailType}</p>
+                    {selectedVault.charges && <p className="text-white/40 text-xs mt-1">Charges: {selectedVault.charges}</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => downloadPDF(selectedVault.draftTemplate)}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      ⬇ PDF
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteBailApplication(selectedVault.id);
+                        setVault(getBailApplications());
+                        setSelectedVaultId(null);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-700/30 hover:bg-red-600/40 border border-red-500/30 text-red-400 text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      🗑 Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl">
+                  <div className="text-xs text-teal-300 uppercase tracking-widest font-semibold mb-1">Legal Rationale</div>
+                  <p className="text-white/70 text-sm leading-relaxed">{selectedVault.reason}</p>
                 </div>
 
                 <textarea
-                  className="w-full h-96 p-4 bg-black/60 border border-white/10 rounded-xl text-white/90 font-mono text-sm leading-relaxed focus:outline-none focus:border-emerald-500/50 resize-y"
-                  value={draftContent}
-                  onChange={(e) => setDraftContent(e.target.value)}
+                  className="w-full h-72 p-4 bg-black/60 border border-white/10 rounded-xl text-white/80 font-mono text-xs leading-relaxed focus:outline-none focus:border-emerald-500/50 resize-y"
+                  value={selectedVault.draftTemplate}
+                  readOnly
                 />
+
+                <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-center">
+                  <p className="text-cyan-400 text-xs font-semibold tracking-wider">
+                    💡 Go to <span className="font-bold">Trainer → Virtual Court Bench</span> to present this bail application to the judge during a live session.
+                  </p>
+                </div>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

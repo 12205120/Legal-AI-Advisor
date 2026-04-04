@@ -1,16 +1,30 @@
-  import type { NextConfig } from "next";
+import type { NextConfig } from "next";
 
-  const nextConfig: NextConfig = {
-    // Move logging out of experimental
-    logging: {
-      fetches: {
-        fullUrl: true,
-      },
+const nextConfig: NextConfig = {
+  logging: {
+    fetches: {
+      fullUrl: true,
     },
-    experimental: {
-      // Keep other experimental features here, 
-      // but remove allowedDevOrigins if you don't explicitly need it
-    },
-  };
+  },
+  experimental: {},
+  // Allow Next.js to transpile @mediapipe/tasks-vision
+  transpilePackages: ["@mediapipe/tasks-vision"],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Handle .wasm files from mediapipe
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      };
+    }
+    // Treat .wasm files as asset/resource so webpack doesn't try to parse them
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: "asset/resource",
+    });
+    return config;
+  },
+};
 
-  export default nextConfig;
+export default nextConfig;
