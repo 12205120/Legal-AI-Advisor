@@ -6,7 +6,7 @@
     "dev": "next dev -p 3005",
     "dev:backend": "cd backend && .\\venv\\Scripts\\python.exe main.py",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint"
   },
