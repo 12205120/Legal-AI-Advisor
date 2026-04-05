@@ -15,8 +15,6 @@ from google import genai
 import smtplib
 from email.mime.text import MIMEText
 import edge_tts
-import torch
-
 # ==============================
 # 1. SSL & ENVIRONMENT
 # ==============================
