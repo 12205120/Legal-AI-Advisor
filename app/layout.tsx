@@ -13,13 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://legal-ai-advisor-phi.vercel.app"),
   title: "Nyaya AI | Advanced Virtual Legal Courtroom & AI Advocate",
   description: "Nyaya AI is an advanced Indian legal simulation platform. Train your advocacy skills, debate with AI lawyers, experience a virtual supreme court, and query an infinite legal library built on fast neural networks.",
   keywords: ["Nyaya AI", "Virtual Courtroom", "Indian Legal AI", "AI Lawyer Simulator", "Law Student Training", "Supreme Court Simulation", "Legal Tech India"],
   openGraph: {
     title: "Nyaya AI | The Virtual Courtroom",
     description: "Train your law skills against the lightning-fast Nyaya AI engine.",
-    url: "https://nyaya.ai",
+    url: "https://legal-ai-advisor-phi.vercel.app",
     siteName: "Nyaya AI",
     images: [{ url: "/sara-human.jpg", width: 800, height: 600 }],
     type: "website",

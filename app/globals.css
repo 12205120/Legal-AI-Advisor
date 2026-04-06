@@ -2,23 +2,29 @@
 
 /* 1. PROFESSIONAL COLOR PALETTE */
 @theme {
-  --color-background: #f8fafc;
-  --color-foreground: #0f172a;
-  --color-master-sidebar: #020617;
-  --color-accent-blue: #2563eb;
+  --color-background: #03030a;
+  --color-foreground: #e2e8f0;
+  --color-master-sidebar: #020205;
+  --color-accent-blue: #00eaff;
+  --color-accent-purple: #b026ff;
+  --color-accent-green: #39ff14;
 }
 
 /* 2. CORE LAYOUT STABILIZERS */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #03030a;
+  --foreground: #e2e8f0;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(ellipse at top left, rgba(0, 234, 255, 0.15) 0%, transparent 40%),
+    radial-gradient(ellipse at bottom right, rgba(176, 38, 255, 0.15) 0%, transparent 40%);
+  background-attachment: fixed;
 }
 
 /* 3. ORIGINAL COMPONENT STYLING */

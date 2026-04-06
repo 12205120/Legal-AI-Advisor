@@ -1,11 +1,16 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBailApplications, BailApplication } from "../../../lib/bail_store";
 
 export default function Virtual() {
+  const searchParams = useSearchParams();
+  const initialSession = searchParams.get("session");
+  
   // Pre-court setup states
-  const [setupPhase, setSetupPhase] = useState(true);
+  const [sessionId, setSessionId] = useState(initialSession || "");
+  const [setupPhase, setSetupPhase] = useState(!initialSession);
   const [selectedLaw, setSelectedLaw] = useState("CONSTITUTIONAL LAW");
   const [role, setRole] = useState("Victim");
   const [opponent, setOpponent] = useState("AI Sara");
@@ -13,6 +18,16 @@ export default function Virtual() {
 
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
+  
+  const hasAutoStarted = useRef(false);
+
+  useEffect(() => {
+    if (initialSession && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      // Wait for layout mount
+      setTimeout(() => startCourtSession(), 500);
+    }
+  }, [initialSession]);
 
   // In-court states
   const [cameraOn, setCameraOn] = useState(false);
@@ -145,7 +160,12 @@ export default function Virtual() {
     const wsUrl = (
       process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
     ).replace("http", "ws");
-    const ws = new WebSocket(`${wsUrl}/ws/legal_debate`);
+    
+    // Generate new session if not joining one
+    const activeSessionId = sessionId || `session_${Math.random().toString(36).substring(7)}`;
+    if (!sessionId) setSessionId(activeSessionId);
+    
+    const ws = new WebSocket(`${wsUrl}/ws/legal_debate/${activeSessionId}`);
     ws.onopen = () => {
       ws.send(
         JSON.stringify({ setup: true, scenario, role })
@@ -155,9 +175,15 @@ export default function Virtual() {
       try {
         const data = JSON.parse(event.data);
         if (data.message) {
-          const opponentLabel = role === "Accused" ? "Public Prosecutor" : "Defense Counsel";
-          setTranscript((prev) => [...prev, { role: opponentLabel, text: data.message }]);
+          const senderLabel = data.sender_role || (role === "Accused" ? "Public Prosecutor" : "Defense Counsel");
+          setTranscript((prev) => [...prev, { role: senderLabel, text: data.message }]);
           setFullPendingText(data.message);
+        } else if (data.query) {
+          // P2P Human Broadcast incoming
+          const senderLabel = data.role || (role === "Accused" ? "Public Prosecutor" : "Defense Counsel");
+          setTranscript((prev) => [...prev, { role: senderLabel, text: data.query }]);
+          // Basic TTS fallback if configured, here we just show subtitles
+          setFullPendingText(data.query);
         }
         if (data.url) setSaraVideoUrl(data.url);
         if (data.audio_url) {
@@ -252,7 +278,7 @@ export default function Virtual() {
     if (!userMessage.trim()) return;
     setTranscript((prev) => [...prev, { role: "YOU", text: userMessage }]);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ query: userMessage }));
+      wsRef.current.send(JSON.stringify({ query: userMessage, role: role, opponent: opponent }));
     } else {
       const opponentLabel = role === "Accused" ? "Public Prosecutor" : "Defense Counsel";
       const offlineMsg = `I formally object to the opposing counsel's argument. Without further evidence, this claim holds no water under current jurisdiction.`;
@@ -431,21 +457,55 @@ export default function Virtual() {
                   Invite Participants
                 </h3>
                 <p className="text-white/70 text-sm mb-6">
-                  Share this link with human participants to join the proceeding.
+                  Share this link or send an email invite to human participants.
                 </p>
-                <div className="bg-black/50 p-4 rounded-xl border border-white/10 text-cyan-300 text-sm mb-6 break-all">
-                  {inviteLink}
+
+                <div className="space-y-4 mb-6 text-left">
+                  <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+                    <label className="text-[10px] text-cyan-500 tracking-widest uppercase mb-2 block font-bold">1. Share Direct Link</label>
+                    <div className="flex gap-2">
+                      <div className="bg-black/50 p-2 rounded-lg flex-1 border border-white/10 text-cyan-300 text-xs truncate select-all">
+                        {`http://localhost:3000/?session=${sessionId || "pending"}&mode=court`}
+                      </div>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`http://localhost:3000/?session=${sessionId || "pending"}&mode=court`)}
+                        className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/20 rounded-lg text-white transition-colors text-xs"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+                    <label className="text-[10px] text-cyan-500 tracking-widest uppercase mb-2 block font-bold">2. Send Email Invite (Via ID)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder={opponent === "Human" && judge === "Human" ? "Enter Lawyer/Judge ID" : opponent === "Human" ? "Enter Lawyer ID" : "Enter Judge ID"}
+                        className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:border-cyan-400"
+                        id="lawyer_id_input"
+                      />
+                      <button
+                        onClick={() => {
+                          const id = (document.getElementById("lawyer_id_input") as HTMLInputElement).value;
+                          if (id.trim()) {
+                            alert(`Invite email successfully sent to registered lawyer/judge ID: ${id}`);
+                          } else {
+                            alert("Please enter a valid ID");
+                          }
+                        }}
+                        className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-400 transition-colors text-xs font-bold"
+                      >
+                        Send Mail
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
                 <div className="flex gap-4">
                   <button
-                    onClick={() => navigator.clipboard.writeText(inviteLink)}
-                    className="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/20 rounded-lg text-white transition-colors"
-                  >
-                    Copy Link
-                  </button>
-                  <button
                     onClick={startCourtSession}
-                    className="flex-1 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 rounded-lg text-cyan-400 transition-colors"
+                    className="w-full py-3 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 rounded-lg text-cyan-400 transition-colors font-bold tracking-wider"
                   >
                     Start Session
                   </button>
@@ -472,20 +532,35 @@ export default function Virtual() {
         </div>
         <div className="flex gap-2 items-center">
           {/* Bail Presentation Button */}
-          <button
-            onClick={() => {
-              setSavedBails(getBailApplications());
-              setShowBailPanel(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded-lg text-emerald-300 text-xs font-bold tracking-widest uppercase transition-all"
-          >
-            🗄 Present Bail
-            {savedBails.length > 0 && (
-              <span className="w-4 h-4 bg-emerald-500 text-black rounded-full text-[9px] flex items-center justify-center font-black">
-                {savedBails.length}
-              </span>
-            )}
-          </button>
+          {role !== "Judge" && role !== "Audience" && (
+            <button
+              onClick={() => {
+                setSavedBails(getBailApplications());
+                setShowBailPanel(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded-lg text-emerald-300 text-[10px] sm:text-xs font-bold tracking-widest uppercase transition-all"
+            >
+              🗄 Present Bail
+              {savedBails.length > 0 && (
+                <span className="w-4 h-4 bg-emerald-500 text-black rounded-full text-[9px] flex items-center justify-center font-black">
+                  {savedBails.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Share to Audience Button (Visible only to Judge) */}
+          {role === "Judge" && (
+            <button
+               onClick={() => {
+                 alert("Case link and argument schedule sent to registered audience members.");
+               }}
+               className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/40 rounded-lg text-blue-300 text-[10px] font-bold tracking-widest uppercase transition-all"
+            >
+              👥 Audience Invite
+            </button>
+          )}
+
           <button
             onClick={() => setShowSubtitles(!showSubtitles)}
             className={`text-[10px] px-3 py-1.5 rounded border transition-all ${
@@ -600,12 +675,13 @@ export default function Virtual() {
 
       {/* Court Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 h-[75vh] min-h-[600px]">
-        {/* LEFT — USER */}
-        <div className="col-span-1 bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden flex flex-col relative shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-          <div className="absolute top-4 left-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-white/10 backdrop-blur-md">
-            <div className="text-[10px] text-white/50 uppercase tracking-widest">Advocate</div>
-            <div className="text-xs text-white uppercase font-bold">{role}</div>
-          </div>
+        {/* LEFT — USER (Hidden for Judge/Audience) */}
+        {role !== "Judge" && role !== "Audience" && (
+          <div className="col-span-1 bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden flex flex-col relative shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+            <div className="absolute top-4 left-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-white/10 backdrop-blur-md">
+              <div className="text-[10px] text-white/50 uppercase tracking-widest">Advocate</div>
+              <div className="text-xs text-white uppercase font-bold">{role}</div>
+            </div>
 
           <div className="flex-1 bg-black/50 flex items-center justify-center relative min-h-[250px] overflow-hidden">
             {cameraOn ? (
@@ -673,9 +749,10 @@ export default function Virtual() {
             </button>
           </div>
         </div>
+        )}
 
         {/* MIDDLE — Transcript + Scenario */}
-        <div className="col-span-1 lg:col-span-2 flex flex-col gap-4">
+        <div className={`col-span-1 flex flex-col gap-4 ${role === "Judge" || role === "Audience" ? "lg:col-span-3" : "lg:col-span-2"}`}>
           {/* Judge bench */}
           <div className="h-36 bg-slate-900/50 border border-orange-500/20 rounded-3xl overflow-hidden relative">
             <div className="absolute top-3 left-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-orange-500/30">

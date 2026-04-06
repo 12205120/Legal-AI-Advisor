@@ -15,6 +15,8 @@ from google import genai
 import smtplib
 from email.mime.text import MIMEText
 import edge_tts
+import sqlite3
+
 # ==============================
 # 1. SSL & ENVIRONMENT
 # ==============================
@@ -180,6 +182,25 @@ async def generate_sara_voice_and_video(text, output_id):
 async def lifespan(app: FastAPI):
     os.makedirs("temp", exist_ok=True)
     os.makedirs("checkpoints", exist_ok=True)
+    
+    # Init DB
+    conn = sqlite3.connect("nyaya_users.db")
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            password TEXT,
+            role TEXT,
+            college TEXT,
+            registration_no TEXT,
+            govt_id TEXT,
+            judicial_id TEXT,
+            verified BOOLEAN
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -194,9 +215,37 @@ app.add_middleware(
 # ==============================
 # 7. WEBSOCKET – LEGAL DEBATE
 # ==============================
-@app.websocket("/ws/legal_debate")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, list[WebSocket]] = {}
+
+    async def connect(self, room: str, websocket: WebSocket):
+        await websocket.accept()
+        if room not in self.active_connections:
+            self.active_connections[room] = []
+        self.active_connections[room].append(websocket)
+
+    def disconnect(self, room: str, websocket: WebSocket):
+        if room in self.active_connections:
+             if websocket in self.active_connections[room]:
+                 self.active_connections[room].remove(websocket)
+             if not self.active_connections[room]:
+                 del self.active_connections[room]
+
+    async def broadcast(self, room: str, message: dict, sender: WebSocket = None):
+        if room in self.active_connections:
+            for connection in self.active_connections[room]:
+                if connection != sender:
+                    try:
+                        await connection.send_json(message)
+                    except:
+                        pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/legal_debate/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    await manager.connect(session_id, websocket)
     history = []
     scenario = "No scenario provided"
     user_role = "Victim" # Default
@@ -206,6 +255,9 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             payload = json.loads(data)
             
+            # Broadcast payload to other human participants (P2P mode)
+            await manager.broadcast(session_id, payload, sender=websocket)
+            
             # Check for setup context
             if "setup" in payload:
                 scenario = payload.get("scenario", scenario)
@@ -214,13 +266,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             query = payload.get("query", "")
-            history.append({"role": "user", "content": query})
-
-            # Persona: If user is "Accused", Sara is the Public Prosecutor (Prosecution).
-            # If user is "Victim/Complainant", Sara is the Defense Counsel.
-            sara_role = "Public Prosecutor (Prosecution)" if user_role == "Accused" else "Defense Counsel"
             
-            prompt = f"""
+            # Only trigger AI if opponent is AI Sara or query forces it
+            if payload.get("opponent", "AI Sara") == "AI Sara" and query:
+                history.append({"role": "user", "content": query})
+
+                sara_role = "Public Prosecutor (Prosecution)" if user_role == "Accused" else "Defense Counsel"
+                
+                prompt = f"""
 You are Senior Counsel Sara, representing the {sara_role} in an Indian Court.
 Case Scenario: {scenario}
 
@@ -236,27 +289,27 @@ YOUR GOAL:
 
 Respond to the latest argument now.
 """
-            try:
-                ai_text = rotator.generate(prompt)
-            except Exception as e:
-                logger.error(str(e))
-                ai_text = "Milord, the prosecution require a brief adjournment. [Backend connectivity lost]."
+                try:
+                    ai_text = rotator.generate(prompt)
+                except Exception as e:
+                    logger.error(str(e))
+                    ai_text = "Milord, the prosecution require a brief adjournment. [Backend connectivity lost]."
 
-            history.append({"role": "assistant", "content": ai_text})
-            
-            # Clean up text from potential markdown if LLM adds any
-            ai_text = ai_text.replace("**", "").replace("#", "").strip()
-            
-            final_text = slang_engine.inject_slang(ai_text)
-            output_id = str(int(time.time()))
-            audio_url = await generate_sara_audio(final_text, output_id)
+                history.append({"role": "assistant", "content": ai_text})
+                ai_text = ai_text.replace("**", "").replace("#", "").strip()
+                final_text = slang_engine.inject_slang(ai_text)
+                
+                output_id = str(int(time.time()))
+                audio_url = await generate_sara_audio(final_text, output_id)
 
-            await websocket.send_json({
-                "message": final_text,
-                "audio_url": audio_url
-            })
+                await websocket.send_json({
+                    "message": final_text,
+                    "audio_url": audio_url,
+                    "sender_role": sara_role
+                })
 
     except WebSocketDisconnect:
+        manager.disconnect(session_id, websocket)
         logger.info("Disconnected")
 
 # ==============================
@@ -488,10 +541,60 @@ async def verify_otp(data: dict):
     email = data.get("email")
     otp = data.get("otp")
     if email in otp_store and str(otp_store[email]) == str(otp):
-        # Clear after successful verification
         del otp_store[email]
+        
+        # Mark as verified in DB if exists
+        try:
+            conn = sqlite3.connect("nyaya_users.db")
+            c = conn.cursor()
+            c.execute("UPDATE users SET verified=1 WHERE email=?", (email,))
+            conn.commit()
+            conn.close()
+        except:
+            pass
+            
         return {"status": "verified"}
     return {"status": "failed", "error": "Invalid OTP or Email"}
+
+@app.post("/register")
+async def register_user(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role")
+    college = data.get("college", "")
+    reg_no = data.get("registration_no", "")
+    govt_id = data.get("govt_id", "")
+    judicial_id = data.get("judicial_id", "")
+    
+    try:
+        conn = sqlite3.connect("nyaya_users.db")
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO users (email, password, role, college, registration_no, govt_id, judicial_id, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                  (email, password, role, college, reg_no, govt_id, judicial_id, False))
+        conn.commit()
+        conn.close()
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error saving to DB: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.post("/login")
+async def login_user(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+    try:
+        conn = sqlite3.connect("nyaya_users.db")
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+        user = c.fetchone()
+        conn.close()
+        if user:
+            return {"status": "success", "user": dict(user)}
+        return {"status": "error", "error": "Invalid credentials"}
+    except Exception as e:
+        logger.error(f"Login DB error: {e}")
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

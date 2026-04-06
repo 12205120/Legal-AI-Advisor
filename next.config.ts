@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {},
+  // Silence Turbopack warning as suggested by Next.js 16 error logs
+  turbopack: {},
   // Allow Next.js to transpile @mediapipe/tasks-vision
   transpilePackages: ["@mediapipe/tasks-vision"],
   webpack: (config, { isServer }) => {

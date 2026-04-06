@@ -32,7 +32,7 @@ export default function Mapper() {
       if (data.error) throw new Error(data.error);
       setMappingResult(data);
     } catch (error) {
-      console.error(error);
+      console.warn("Backend error:", error instanceof Error ? error.message : "Unknown error");
       setTimeout(() => {
         const fakeIpc = query.match(/\d+/) ? query.match(/\d+/)?.[0] : "???";
         setMappingResult({

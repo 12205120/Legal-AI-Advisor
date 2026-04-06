@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import jsPDF from "jspdf";
+import { useGesture } from "../../../components/ui/GestureContext";
 import { getBailApplications, saveBailApplication, deleteBailApplication, BailApplication } from "../../../lib/bail_store";
 
 interface BailData {
@@ -43,6 +44,117 @@ export default function Bail() {
   const [vault, setVault] = useState<BailApplication[]>([]);
   const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null);
 
+  // Gesture Signature System
+  const { cursorX, cursorY, isPinching, isActive } = useGesture();
+  const [isSigning, setIsSigning] = useState(false);
+  const [placingSignature, setPlacingSignature] = useState(false);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [placedSignature, setPlacedSignature] = useState<{ x: number; y: number; data: string } | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const draftAreaRef = useRef<HTMLDivElement>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Gesture Drawing Effect
+  useEffect(() => {
+    if (!isSigning || !isActive) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (isPinching) {
+      const rect = canvas.getBoundingClientRect();
+      const x = cursorX - rect.left;
+      const y = cursorY - rect.top;
+      if (lastPosRef.current) {
+        ctx.beginPath();
+        ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "#10b981"; // Emerald color for signature
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+      lastPosRef.current = { x, y };
+    } else {
+      lastPosRef.current = null;
+    }
+  }, [cursorX, cursorY, isPinching, isSigning, isActive]);
+
+  // Gesture Placing Effect
+  useEffect(() => {
+    if (!placingSignature || !isActive) return;
+    if (isPinching) {
+      const rect = draftAreaRef.current?.getBoundingClientRect();
+      if (rect && cursorX >= rect.left && cursorX <= rect.right && cursorY >= rect.top && cursorY <= rect.bottom) {
+        setPlacedSignature({
+          data: signatureDataUrl!,
+          x: cursorX - rect.left,
+          y: cursorY - rect.top,
+        });
+        setPlacingSignature(false);
+      }
+    }
+  }, [isPinching, cursorX, cursorY, placingSignature, signatureDataUrl, isActive]);
+
+  // Fallback Mouse Drawing
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isActive) return; // Gesture has priority
+    if (e.buttons !== 1) {
+      lastPosRef.current = null;
+      return;
+    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (lastPosRef.current) {
+      ctx.beginPath();
+      ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    lastPosRef.current = { x, y };
+  };
+
+  const handleSaveSignature = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      setSignatureDataUrl(canvas.toDataURL("image/png"));
+      setIsSigning(false);
+      setPlacingSignature(true);
+    }
+  };
+
+  const handleClearSignature = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    setSignatureDataUrl(null);
+    setPlacedSignature(null);
+  };
+
+  const handleDraftClick = (e: React.MouseEvent) => {
+    if (!placingSignature || isActive) return; // Ignore if gesture is active
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPlacedSignature({
+      data: signatureDataUrl!,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    setPlacingSignature(false);
+  };
+
   useEffect(() => {
     setVault(getBailApplications());
   }, [tab]);
@@ -79,7 +191,7 @@ export default function Bail() {
         setBailResult(data);
         if (data.draftTemplate) setDraftContent(data.draftTemplate);
       } catch (error) {
-        console.error(error);
+        console.warn("Backend error:", error instanceof Error ? error.message : "Unknown error");
         setTimeout(() => {
           const fallbackBailType = charges.includes("Murder") || charges.includes("302") ? "Regular Bail (Non-Bailable Offense)" : "Anticipatory Bail / Regular Bail";
           const draft = `IN THE COURT OF SESSIONS / HIGH COURT \n\nIN THE MATTER OF:\n${applicantName} ... APPLICANT\nVS.\nTHE STATE ... RESPONDENT\n\nFIR NO: ${firNumber || "N/A"}\nPOLICE STATION: ${policeStation || "N/A"}\nCHARGES: ${charges || "N/A"}\nID NUMBER: ${idNumber || "N/A"}\n\nBAIL APPLICATION UNDER SECTION 437/438/439 OF CrPC / SEC 482 of BNSS\n\nMOST RESPECTFULLY SHOWETH:\n1. That the applicant is innocent and has been falsely implicated.\n2. That there is no direct evidence linking the applicant.\n3. Case specific grounds: ${caseDescription}\n4. Additional Grounds: ${selectedGrounds.join(", ") || "None specified"}\n\nPRAYER:\nIn light of the above, it is prayed that the applicant be released on bail.\n\nPLACE: ______\nDATE: ______\n\nADVOCATE FOR APPLICANT`;
@@ -130,10 +242,50 @@ export default function Bail() {
     doc.save("Bail_Application_Draft.pdf");
   };
 
+  // Overlay component rendered within return
+  // so we can access variables.
+
   const selectedVault = vault.find((a) => a.id === selectedVaultId) ?? null;
 
   return (
-    <div className="bg-black/40 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+    <div className="bg-black/40 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(16,185,129,0.15)] relative overflow-hidden">
+      
+      {/* Signature Canvas Overlay */}
+      {isSigning && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="text-emerald-400 font-mono text-sm tracking-widest uppercase mb-4 animate-pulse">
+            Gesture Mode: Pinch to Sign Document
+          </div>
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={400}
+            className="border-2 border-emerald-500/50 rounded-2xl bg-white/5 cursor-crosshair shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+            onMouseMove={handleCanvasMouseMove}
+          />
+          <div className="flex gap-4 mt-6">
+            <button
+              onClick={handleClearSignature}
+              className="px-6 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl font-semibold hover:bg-red-500/30 transition-all"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => setIsSigning(false)}
+              className="px-6 py-2 bg-white/10 text-white border border-white/20 rounded-xl font-semibold hover:bg-white/20 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveSignature}
+              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+            >
+              Done & Place
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 border-b border-white/10 pb-4 flex items-center justify-between">
         <div>
@@ -285,6 +437,27 @@ export default function Bail() {
                         Bail Draft (Editable)
                       </h4>
                       <div className="flex gap-2">
+                        {!signatureDataUrl && (
+                          <button
+                            onClick={() => setIsSigning(true)}
+                            className="flex items-center gap-2 px-3 py-2 bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-300 text-sm font-semibold rounded-lg transition-colors"
+                          >
+                            ✒️ Sign
+                          </button>
+                        )}
+                        {signatureDataUrl && placingSignature && (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 border border-orange-500/50 text-orange-300 text-sm font-semibold rounded-lg animate-pulse">
+                            📍 Pinch/Click to Place
+                          </div>
+                        )}
+                        {signatureDataUrl && placedSignature && (
+                          <button
+                            onClick={() => { setPlacedSignature(null); setSignatureDataUrl(null); }}
+                            className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/50 hover:bg-red-500/30 text-red-300 text-sm font-semibold rounded-lg transition-colors"
+                          >
+                            ❌ Clear Signature
+                          </button>
+                        )}
                         {savedMsg ? (
                           <span className="px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-sm rounded-lg">{savedMsg}</span>
                         ) : (
@@ -303,11 +476,35 @@ export default function Bail() {
                         </button>
                       </div>
                     </div>
-                    <textarea
-                      className="w-full h-96 p-4 bg-black/60 border border-white/10 rounded-xl text-white/90 font-mono text-sm leading-relaxed focus:outline-none focus:border-emerald-500/50 resize-y"
-                      value={draftContent}
-                      onChange={(e) => setDraftContent(e.target.value)}
-                    />
+                    
+                    <div 
+                      ref={draftAreaRef}
+                      className="relative w-full rounded-xl overflow-hidden border border-white/10 group focus-within:border-emerald-500/50"
+                      onClick={handleDraftClick}
+                      style={{ cursor: placingSignature ? "crosshair" : "text" }}
+                    >
+                      <textarea
+                        className="w-full h-96 p-4 bg-black/60 text-white/90 font-mono text-sm leading-relaxed outline-none resize-none"
+                        value={draftContent}
+                        onChange={(e) => setDraftContent(e.target.value)}
+                      />
+                      
+                      {placedSignature && (
+                        <div
+                          className="absolute pointer-events-none drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                          style={{
+                            left: placedSignature.x - 75, // Adjust for centering (assuming ~150px signature width)
+                            top: placedSignature.y - 40,  // Adjust height centering
+                          }}
+                        >
+                          <img 
+                            src={placedSignature.data} 
+                            alt="Signature" 
+                            className="w-[150px] object-contain opacity-90 mix-blend-screen"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}

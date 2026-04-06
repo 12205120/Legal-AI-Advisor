@@ -44,7 +44,54 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/send_otp", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+      
+      if (authMode === "LOGIN") {
+        const loginRes = await fetch(`${backendUrl}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email, password: formData.password })
+        });
+        const loginData = await loginRes.json();
+        
+        if (loginData.status === "success") {
+          // Pre-fill retrieved DB data
+          setFormData({
+            ...formData,
+            college: loginData.user.college || "",
+            govtId: loginData.user.govt_id || "",
+            judicialId: loginData.user.judicial_id || "",
+            registrationNo: loginData.user.registration_no || ""
+          });
+        } else {
+          alert("Invalid Login credentials or user not found.");
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Register mode: create new user
+        const regRes = await fetch(`${backendUrl}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            role: activeRole,
+            college: formData.college,
+            registration_no: formData.registrationNo,
+            govt_id: formData.govtId,
+            judicial_id: formData.judicialId
+          })
+        });
+        if (!regRes.ok) {
+           alert("Registration failed.");
+           setIsLoading(false);
+           return;
+        }
+      }
+
+      // Proceed to OTP step for 2FA
+      const res = await fetch(`${backendUrl}/send_otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email })
@@ -56,7 +103,7 @@ export default function ProfileModule() {
       }
     } catch (err) {
       console.error(err);
-      alert("Error reaching backend for OTP.");
+      alert("Error reaching backend for Authentication.");
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +113,8 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/verify_otp", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+      const res = await fetch(`${backendUrl}/verify_otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email, otp: formData.otp })
@@ -202,12 +250,20 @@ export default function ProfileModule() {
         </h2>
 
         {isOtpStep ? (
-           <div className="w-full space-y-4">
-             <p className="text-white/60 text-sm text-center mb-4">A security OTP has been sent to your email.</p>
-             <input type="text" name="otp" placeholder="Enter OTP" required value={formData.otp} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-4 rounded-xl text-cyan-400 text-center text-2xl tracking-[0.5em]" />
-             <button type="submit" className="w-full py-4 bg-cyan-500 text-black font-black rounded-xl hover:bg-white transition-colors mt-4">VERIFY & PROCEED</button>
-           </div>
-        ) : (
+             <div className="w-full space-y-4">
+               <p className="text-white/60 text-sm text-center mb-4">A security OTP has been sent to your email.</p>
+               <input type="text" name="otp" placeholder="Enter OTP" required value={formData.otp} onChange={handleInputChange} className="w-full bg-black/50 border border-cyan-500/50 focus:border-cyan-400 p-4 rounded-xl text-cyan-400 text-center text-2xl tracking-[0.5em] focus:outline-none shadow-[0_0_15px_rgba(0,234,255,0.2)] transition-shadow" />
+               <button type="submit" disabled={isLoading} className="relative w-full py-4 mt-4 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 hover:from-emerald-400 via-teal-500 to-cyan-500 hover:to-cyan-400 text-white font-black tracking-widest transition-all duration-300 shadow-[0_0_30px_rgba(16,185,129,0.6)] group">
+                 <span className="absolute inset-0 bg-white/20 blur-md group-hover:opacity-100 opacity-0 transition-opacity" />
+                 <div className="relative z-10 flex items-center justify-center gap-2">
+                   {isLoading ? (
+                     <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                   ) : null}
+                   VERIFY & PROCEED
+                 </div>
+               </button>
+             </div>
+          ) : (
           <div className="w-full space-y-4">
             <input type="email" name="email" placeholder="Email Address" required value={formData.email} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-4 rounded-xl text-white placeholder-white/30" />
             
@@ -245,8 +301,14 @@ export default function ProfileModule() {
               </button>
             )}
 
-            <button type="submit" className="w-full py-4 bg-cyan-500 text-black font-black rounded-xl hover:bg-white transition-colors mt-6 tracking-widest">
-              {authMode === "LOGIN" ? "SECURE LOGIN" : "REQUEST OTP"}
+            <button type="submit" disabled={isLoading} className="relative w-full py-4 mt-6 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 hover:from-cyan-400 via-blue-500 to-purple-600 hover:to-purple-500 text-white font-black tracking-widest transition-all duration-300 shadow-[0_0_30px_rgba(0,234,255,0.6)] group">
+              <span className="absolute inset-0 bg-white/20 blur-md group-hover:opacity-100 opacity-0 transition-opacity" />
+              <div className="relative z-10 flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : null}
+                {authMode === "LOGIN" ? "SECURE LOGIN" : "REQUEST OTP"}
+              </div>
             </button>
           </div>
         )}
