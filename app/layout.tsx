@@ -25,6 +25,9 @@ export const metadata: Metadata = {
     images: [{ url: "/sara-human.jpg", width: 800, height: 600 }],
     type: "website",
   },
+  verification: {
+    google: "1ghBRsAv5Utmo_Op3ZEbwiyjGjihEEIk-dYIdeP34TA",
+  },
   robots: "index, follow",
 };
 
