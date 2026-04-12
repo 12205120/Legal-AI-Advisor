@@ -7,15 +7,16 @@ import ssl
 import time
 import asyncio
 import subprocess
+import urllib.request
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from google import genai
 import smtplib
 from email.mime.text import MIMEText
 import edge_tts
 import sqlite3
+from knowledge_vault import vault
 
 # ==============================
 # 1. SSL & ENVIRONMENT
@@ -26,72 +27,90 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("NyayaAI_Neural_Engine")
 
 # ==============================
-# 2. API ROTATOR
+# 2. NEURAL ENGINE (LOCAL ONLY)
 # ==============================
-API_KEYS = [
-    "AIzaSyD_EJKgWQrHOAjEwWJzK4lCtW7zAmfzF40",
-    "AIzaSyDrBIpRpC2iD9VS380LGhlpB0JHtiliFIQ",
-    "AIzaSyB-T7pm593-L-999iFmGzGUDPTF9umTw4g",
-]
-
-# Try these models in order until one works
-MODEL_FALLBACKS = [
-    "gemini-2.0-flash",            # Fast & stable
-    "gemini-2.0-flash-lite",       # Lite version
-    "gemini-1.5-flash",            # Reliable fallback
-    "gemini-1.5-flash-latest",     # Latest 1.5
-    "gemini-1.5-pro",              # Pro fallback
-]
-
-MODEL_ID = MODEL_FALLBACKS[0]  # default
 
 class NeuralRotator:
-    def __init__(self, keys):
-        self.keys = keys
-        self.index = 0
+    def __init__(self):
+        self.ollama_url = "http://127.0.0.1:11434/api/generate"
+        self.ollama_model = "llama3:latest" # Matches your local installation
 
-    def get_client(self):
-        key = self.keys[self.index]
-        client = genai.Client(api_key=key)
-        logger.info(f"Rotating to Key Index {self.index}")
-        self.index = (self.index + 1) % len(self.keys)
-        return client
+    def generate(self, prompt: str, use_vault: bool = True) -> str:
+        """Forced Local Neural Execution. All traffic routed to Ollama."""
+        
+        # 1. Inject Context from Knowledge Vault if applicable
+        if use_vault:
+            context = vault.query(prompt)
+            if context:
+                prompt = f"{context}\n\n(IMPORTANT: Use the provided RELEVANT LEGAL CONTEXT above to anchor your answer if applicable. If the context contains specific sections or previous cases, CITE them directly.)\n\nUSER QUERY: {prompt}"
 
-    def generate(self, prompt: str) -> str:
-        """Turbo-optimized API call. Fails fast without heavy time.sleep() to ensure lightning-fast responses like the web client."""
-        last_err = None
-        # Try maximum 2 rapid attempts
-        for attempt in range(2):
-            for key in self.keys:
-                client = genai.Client(api_key=key)
-                try:
-                    # Explicitly use gemini-1.5-flash for maximum speed to mimic web speed
-                    resp = client.models.generate_content(
-                        model="gemini-1.5-flash", 
-                        contents=prompt,
-                        config={"temperature": 0.3} # Optimize speed
-                    )
-                    logger.info(f"Turbo execution success with key={key[:12]}...")
-                    return resp.text
-                except Exception as e:
-                    last_err = e
-                    logger.warning(f"Key failed, swapping instantly. Err: {str(e)[:40]}")
-                    
-        raise Exception(f"All fast attempts exhausted. Last error: {last_err}")
+        # 2. Inject Entropy Seed for Non-Repetition
+        entropy = f"\n\n[SYSTEM_SEED: {random.randint(1000, 9999)}-{time.time()}]\n[INSTRUCTION: Ensure this response is unique, uses a distinct Indian district, and focuses on a specific but different legal nuance than previous iterations.]"
+        prompt += entropy
 
-rotator = NeuralRotator(API_KEYS)
+        # 3. Primary & Only Route: Local Ollama
+        payload = {
+            "model": self.ollama_model,
+            "prompt": prompt,
+            "stream": False
+        }
+        try:
+            req = urllib.request.Request(
+                self.ollama_url, 
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}, 
+                method='POST'
+            )
+            # Increase timeout to 120s for complex local legal inference
+            with urllib.request.urlopen(req, timeout=120) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                text_response = result.get("response", "").strip()
+                logger.info(f"Ollama local execution success using {self.ollama_model}.")
+                
+                # If the calling function expects JSON, ensure we don't return plain error text
+                # We return the raw text, and endpoints will handle JSON conversion themselves.
+                return text_response
+        except Exception as e:
+            logger.error(f"FAILURE: Local Neural Engine (Ollama) failed. Err: {e}")
+            # Instead of returning a sentence, throw an exception so calling functions know it failed
+            raise Exception(f"Ollama connection error: {str(e)}")
+
+rotator = NeuralRotator()
 
 # ==============================
 # 3. LAW DATABASE
 # ==============================
 LAW_DATABASE = {
+    # Homicide & Attempt
     "302": {"bns": "101", "name": "Murder"},
     "307": {"bns": "109", "name": "Attempt to Murder"},
+    "304B": {"bns": "80", "name": "Dowry Death"},
+    
+    # Sexual Offences
     "376": {"bns": "64", "name": "Rape"},
+    "376D": {"bns": "70", "name": "Gang Rape"},
+    
+    # Theft & Property
     "379": {"bns": "303", "name": "Theft"},
-    "420": {"bns": "318", "name": "Cheating"},
-    "498A": {"bns": "85", "name": "Cruelty"},
-    "506": {"bns": "351", "name": "Criminal Intimidation"}
+    "380": {"bns": "305", "name": "Theft in Dwelling House"},
+    "392": {"bns": "309", "name": "Robbery"},
+    "411": {"bns": "317", "name": "Receiving Stolen Property"},
+    
+    # Fraud & Dishonesty
+    "420": {"bns": "318", "name": "Cheating and Dishonestly inducing delivery of property"},
+    "406": {"bns": "316", "name": "Criminal Breach of Trust"},
+    
+    # Hurt & Assault
+    "323": {"bns": "115", "name": "Voluntarily Causing Hurt"},
+    "324": {"bns": "118", "name": "Voluntarily Causing Hurt by Dangerous Weapons"},
+    "354": {"bns": "74", "name": "Assault or criminal force to woman with intent to outrage her modesty"},
+    
+    # Others
+    "498A": {"bns": "85", "name": "Cruelty by Husband or Relatives"},
+    "506": {"bns": "351", "name": "Criminal Intimidation"},
+    "120B": {"bns": "61", "name": "Criminal Conspiracy"},
+    "143": {"bns": "189", "name": "Unlawful Assembly"},
+    "34": {"bns": "3", "name": "Common Intention"}
 }
 
 LEGAL_LIBRARY = {
@@ -200,6 +219,15 @@ async def lifespan(app: FastAPI):
     ''')
     conn.commit()
     conn.close()
+    
+    # Background Task: Auto-Sync Brain every 60s
+    async def auto_reload_vault():
+        while True:
+            await asyncio.sleep(60)
+            if vault.reload():
+                logger.info("Auto-sync: Knowledge Vault updated.")
+                
+    asyncio.create_task(auto_reload_vault())
     
     yield
 
@@ -318,22 +346,38 @@ Respond to the latest argument now.
 
 @app.post("/generate_scenario")
 async def generate_scenario(data: dict):
-    law = data.get("law", "criminal")
-    prompt = f"""You are an expert Indian Legal Case Author. Generate a highly realistic and detailed Indian court case scenario under {law}.
+    law_type = data.get("law", "criminal")
+    
+    # DIVERSITY ENGINE: Inject random geographic and thematic seeds
+    districts = ["Pune", "Thane", "Nagpur", "Nashik", "Aurangabad", "Ahmednagar", "Solapur", "Amravati"]
+    locations = ["Railway Station", "Main Market", "Corporate Office", "Residential Society", "Public Park", "Highway"]
+    random_id = random.randint(1000, 9999)
+    current_district = random.choice(districts)
+    current_loc = random.choice(locations)
+    
+    prompt = f"""You are an expert Indian Legal Case Author. 
+Generate a HIGHLY UNIQUE and detailed Indian court case scenario.
+MANDATORY VARIATION SEED: #{random_id}
+LOCATION: {current_district}, {current_loc}
+
+TASK:
+1. Create a realistic, complex legal scenario for a {law_type} case.
+2. Ensure it is NOT a generic template. Add specific details like exact names, specific items involved, and a unique sequence of events.
+3. Choose a specific Indian city and district randomly from Maharashtra.
 
 Respond with ONLY a valid JSON object. No markdown, no code blocks.
 {{
-  "caseTitle": "Short case title, e.g., State v. Rajesh Kumar",
-  "caseNumber": "A realistic case number, e.g., Sessions Case No. 142/2024",
-  "court": "Relevant Indian court for this case",
-  "accusedName": "A realistic Indian name",
-  "victimName": "A realistic Indian name or 'The State' if applicable",
-  "sections": "Relevant IPC/BNS/Specific Act sections, e.g., IPC Section 302, 34",
-  "summary": "3-4 sentence narrative summary of the incident",
-  "prosecution": "Key arguments the prosecution will make",
-  "defense": "Key arguments the defense can raise",
-  "keyEvidence": "3 bullet points of key evidence in the case",
-  "charges": "Formal charges as stated by the court"
+  "caseTitle": "State of Maharashtra v. [Unique Name]",
+  "caseNumber": "CNR No. MH{random.randint(10,99)}01-{random.randint(100000, 999999)}-2024",
+  "court": "District & Sessions Court, {current_district}",
+  "accusedName": "Full Indian name",
+  "victimName": "Full Indian name",
+  "sections": "Relevant BNS sections and equivalent IPC sections",
+  "summary": "Detailed narrative of the specific incident (6-8 sentences)",
+  "prosecution": "3 sharp, specific legal arguments",
+  "defense": "3 realistic legal defenses",
+  "keyEvidence": "Detailed list including forensics or specific documents",
+  "charges": "Formal charges as per BNSS/CrPC"
 }}"""
     try:
         text = rotator.generate(prompt).strip()
@@ -345,6 +389,47 @@ Respond with ONLY a valid JSON object. No markdown, no code blocks.
         logger.error(str(e))
         return {"error": "AI system temporarily unavailable. Please try again in a moment."}
 
+
+@app.post("/upload_training_pdf")
+async def upload_training_pdf(file: UploadFile = File(...)):
+    """Upload and index a PDF into the Knowledge Vault."""
+    try:
+        temp_path = f"temp/{file.filename}"
+        content = await file.read()
+        with open(temp_path, "wb") as f:
+            f.write(content)
+        
+        # Trigger indexing
+        chunk_count = vault.add_pdf(temp_path)
+        
+        # Cleanup temp file
+        os.remove(temp_path)
+        
+        return {
+            "status": "success", 
+            "message": f"Successfully indexed {chunk_count} legal chunks from {file.filename}.",
+            "filename": file.filename
+        }
+    except Exception as e:
+        logger.error(f"Training upload failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/reload_vault")
+async def reload_vault():
+    """Manual trigger to refresh the AI brain from disk."""
+    success = vault.reload()
+    if success:
+        return {"status": "success", "message": "Knowledge Vault reloaded successfully.", "chunks": len(vault.metadata)}
+    return {"status": "error", "message": "Failed to reload vault index."}
+
+@app.get("/vault_status")
+async def get_vault_status():
+    """Get statistics about the Knowledge Vault."""
+    return {
+        "status": "active",
+        "chunks": len(vault.metadata),
+        "documents": list(set(item["source"] for item in vault.metadata))
+    }
 
 @app.post("/upload_scenario")
 async def upload_scenario(file: UploadFile = File(...)):
@@ -361,7 +446,19 @@ async def upload_scenario(file: UploadFile = File(...)):
 @app.post("/logic_solver")
 async def logic_solver(data: dict):
     scenario = data.get("scenario")
-    prompt = f"You are a senior Indian lawyer. Analyze this case legally and provide section-wise analysis, arguments for both sides, and likely verdict:\n{scenario}"
+    prompt = f"""You are a High Court Advocate and Senior Legal Consultant.
+Analyze the following case scenario with absolute legal precision using your local Knowledge Vault.
+
+TASK:
+1. Identify the core legal issues.
+2. Map the facts to specific Sections of BNS and IPC.
+3. PREDICT THE VERDICT: Based on current Indian judicial trends and the PROVIDED CONTEXT, what is the most likely outcome?
+4. ADVISE THE USER: What should be the immediate next legal steps?
+
+Provide a deep, professional analysis. If the Context contains similar past judgments or specific acts, YOU MUST CITE THEM.
+Case Scenario:
+{scenario}
+"""
     try:
         return {"analysis": rotator.generate(prompt)}
     except Exception as e:
@@ -419,15 +516,17 @@ async def library_search(data: dict):
     prompt = f"""You are an expert Indian Legal Scholar with deep knowledge of all Indian laws, acts, and constitutional provisions.
 The user wants to learn about: "{query}"
 
-Provide a comprehensive, well-structured legal explanation. Respond with ONLY a valid JSON object. No markdown, no code blocks.
+Using the PROVIDED LEGAL CONTEXT from the Knowledge Vault, provide a comprehensive, well-structured legal explanation. 
+Respond with ONLY a valid JSON object. No markdown, no code blocks.
+
 {{
   "title": "Clear topic title",
-  "overview": "2-3 sentence overview of the legal concept",
-  "keyProvisions": ["Key provision 1", "Key provision 2", "Key provision 3", "Key provision 4", "Key provision 5"],
-  "relevantSections": "Specific sections/articles from the act or constitution",
-  "landmarkCases": [{{"name": "Case name", "ruling": "One-sentence ruling summary"}}],
+  "overview": "2-3 sentence overview of the legal concept based on the vault data",
+  "keyProvisions": ["Provision from vault 1", "Provision from vault 2", "Provision from vault 3"],
+  "relevantSections": "Specific sections/articles mentioned in the vault",
+  "landmarkCases": [{{"name": "Case name from vault", "ruling": "One-sentence ruling summary"}}],
   "practicalImplication": "How this law affects common citizens in practice",
-  "recentAmendments": "Any recent amendments or changes (BNS, BNSS, BSA etc.)"
+  "recentAmendments": "Any recent amendments from BNS/BSA as seen in the vault"
 }}"""
     try:
         text = rotator.generate(prompt).strip()
@@ -469,7 +568,6 @@ async def suggest_bail(data: dict):
     applicant_name = data.get("applicant_name", "[Applicant Name]")
     id_number = data.get("id_number", "[ID Number]")
     case_description = data.get("case_description", "")
-    client = rotator.get_client()
     prompt = f"""You are an expert Indian Defense Lawyer. Analyze this case and suggest the appropriate bail:
 Case: "{case_description}"
 Applicant Name: "{applicant_name}"
@@ -484,8 +582,7 @@ The JSON object must have the following exact keys:
 }}"""
 
     try:
-        resp = client.models.generate_content(model=MODEL_ID, contents=prompt)
-        text = resp.text.strip()
+        text = rotator.generate(prompt).strip()
         
         if text.startswith("```json"): text = text[7:]
         if text.startswith("```"): text = text[3:]

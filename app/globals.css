@@ -2,18 +2,18 @@
 
 /* 1. PROFESSIONAL COLOR PALETTE */
 @theme {
-  --color-background: #03030a;
-  --color-foreground: #e2e8f0;
-  --color-master-sidebar: #020205;
-  --color-accent-blue: #00eaff;
-  --color-accent-purple: #b026ff;
-  --color-accent-green: #39ff14;
+  --color-background: #0b0e14;
+  --color-foreground: #f8fafc;
+  --color-master-sidebar: #090b0f;
+  --color-accent-blue: #00e5ff; /* Piercing Neon Cyan */
+  --color-accent-purple: #0ea5e9; /* Deep Sky Blue for tech contrast */
+  --color-accent-green: #38bdf8; /* Bright icy blue */
 }
 
 /* 2. CORE LAYOUT STABILIZERS */
 :root {
-  --background: #03030a;
-  --foreground: #e2e8f0;
+  --background: #0b0e14;
+  --foreground: #f8fafc;
 }
 
 body {
@@ -22,10 +22,12 @@ body {
   font-family: 'Outfit', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   background-image: 
-    radial-gradient(ellipse at top left, rgba(0, 234, 255, 0.15) 0%, transparent 40%),
-    radial-gradient(ellipse at bottom right, rgba(176, 38, 255, 0.15) 0%, transparent 40%);
+    radial-gradient(ellipse at top left, rgba(0, 229, 255, 0.12) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(14, 165, 233, 0.1) 0%, transparent 45%),
+    radial-gradient(ellipse at center, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
   background-attachment: fixed;
 }
+
 
 /* 3. ORIGINAL COMPONENT STYLING */
 /* Side-by-Side Video Containers */

@@ -49,59 +49,73 @@ export default function Sidebar({
   }, [isPinching, isActive, cursorX, cursorY]);
 
   return (
-    <div className="w-64 bg-black/60 backdrop-blur-xl border-r border-cyan-500/20 p-6">
-      <h1 className="text-2xl font-bold text-cyan-400 mb-10 tracking-widest">
-        NYAYA AI
+    <div className="w-72 bg-slate-900/60 backdrop-blur-3xl border-r border-white/5 p-8 flex flex-col">
+      <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00e5ff] to-[#0ea5e9] mb-12 tracking-tighter">
+        NYAYA_AI
       </h1>
 
-      {items.map((item) => {
-        const isHovered = hoveredItem === item.id;
-        const isActiveTab = active === item.id;
+      <div className="space-y-4 flex-1">
+        {items.map((item) => {
+          const isHovered = hoveredItem === item.id;
+          const isActiveTab = active === item.id;
 
-        return (
-          <div
-            id={`sidebar-item-${item.id}`}
-            data-gesture-id={`sidebar-${item.id}`}
-            key={item.id}
-            onClick={() => setActive(item.id)}
-            className={`p-3 mb-3 rounded-xl cursor-pointer transition-all duration-300 ${
-              isActiveTab
-                ? "bg-cyan-500/20 border border-cyan-400 shadow-lg shadow-cyan-500/20"
-                : isHovered
-                ? "bg-cyan-500/10 border border-cyan-500/40 shadow-md shadow-cyan-500/10 scale-[1.02]"
-                : "hover:bg-white/5 border border-transparent"
-            }`}
-            style={
-              isHovered
-                ? { boxShadow: "0 0 20px rgba(0,255,255,0.2)" }
-                : undefined
-            }
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-lg">{item.icon}</span>
-              <span className={isActiveTab ? "text-cyan-300 font-semibold" : "text-white/80"}>
-                {item.label.replace(/^.+\s/, "")}
-              </span>
-              {isHovered && !isActiveTab && (
-                <span className="ml-auto text-[9px] text-cyan-400 font-bold tracking-widest animate-pulse">
-                  PINCH
+          return (
+            <div
+              id={`sidebar-item-${item.id}`}
+              data-gesture-id={`sidebar-${item.id}`}
+              key={item.id}
+              onClick={() => setActive(item.id)}
+              className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-500 overflow-hidden ${
+                isActiveTab
+                  ? "bg-[#00e5ff]/10 border border-[#00e5ff]/30 shadow-[0_0_20px_rgba(0,229,255,0.15)]"
+                  : isHovered
+                  ? "bg-white/5 border border-white/10 translate-x-1"
+                  : "bg-transparent border border-transparent"
+              }`}
+            >
+              <div className="flex items-center gap-4 relative z-10">
+                <span className={`text-xl transition-transform duration-300 ${isHovered ? "scale-110" : ""}`}>
+                  {item.icon}
                 </span>
+                <span className={`text-sm tracking-wide transition-colors duration-300 ${
+                  isActiveTab ? "text-[#00e5ff] font-bold" : isHovered ? "text-white" : "text-slate-400"
+                }`}>
+                  {item.label.split(" ").slice(1).join(" ").toUpperCase()}
+                </span>
+                
+                {isHovered && !isActiveTab && (
+                  <div className="ml-auto w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
+                )}
+              </div>
+              
+              {isActiveTab && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5ff] shadow-[0_0_10px_#00e5ff]" />
               )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      {/* Gesture mode indicator in sidebar */}
-      {isActive && (
-        <div className="mt-8 p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5">
-          <div className="text-[9px] text-cyan-500 tracking-widest font-bold mb-1">GESTURE MODE</div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse inline-block" />
-            <span className="text-[10px] text-white/50">Point + Pinch to navigate</span>
+      {/* Gesture mode status display */}
+      <div className={`mt-auto p-4 rounded-xl border transition-all duration-500 ${
+        isActive 
+          ? "border-[#00e5ff]/20 bg-[#00e5ff]/5" 
+          : "border-white/5 bg-white/2"
+      }`}>
+        <div className={`text-[10px] tracking-[0.2em] font-black mb-2 ${
+          isActive ? "text-[#00e5ff]" : "text-slate-500"
+        }`}>
+          {isActive ? "SYSTEM_ACTIVE" : "GESTURE_IDLE"}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${
+            isActive ? "bg-[#00e5ff] animate-pulse" : "bg-slate-700"
+          }`} />
+          <div className="text-[10px] text-slate-400 font-mono uppercase">
+            {isActive ? "Link Established" : "Awaiting Input"}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

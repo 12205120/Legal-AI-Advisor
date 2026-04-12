@@ -53,17 +53,10 @@ export default function Library() {
       if (data.error) throw new Error(data.error);
       setResult(data);
     } catch (error) {
-      console.warn("Backend API not reachable. Using fallback.");
-      setTimeout(() => {
-        setResult({
-          title: "Legal Knowledge: " + q,
-          overview: "[OFFLINE FALLBACK] This is an offline mock overview because the API limit has been reached or the backend is down. " + q + " is a vital concept in Indian Law ensuring justice.",
-          relevantSections: "Relevant Sections of corresponding Acts",
-          keyProvisions: ["Offline Provision 1 regarding " + q, "Maintains law and order"],
-          landmarkCases: [{ name: "State vs Simulated Defendant", ruling: "Upheld the validity of " + q }],
-          practicalImplication: "Must be carefully evaluated by advocates during trials.",
-        });
-      }, 1000);
+      console.error("Library Search Error:", error);
+      setResult({
+        error: "Neural Engine is currently busy indexing new legal acts. Please try again in 30 seconds."
+      });
     } finally {
       setLoading(false);
     }

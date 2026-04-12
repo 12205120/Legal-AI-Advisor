@@ -22,14 +22,22 @@ export default function Home() {
       >
         {activeTab === "trainer" && (
           <>
-            <div className="mb-10">
-              <h1 className="text-4xl md:text-5xl font-bold text-cyan-300 tracking-widest">
-                ⚖ NYAYA AI – Judicial Intelligence System
+            <div className="mb-14 relative">
+              <div className="absolute -left-8 top-0 bottom-0 w-1 bg-[#00e5ff]/40 rounded-full" />
+              <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none mb-4">
+                JUDICIAL <span className="text-[#00e5ff]">INTELLIGENCE</span>
               </h1>
-              <p className="text-white/60 mt-4 max-w-2xl">
-                Ultra Futuristic Legal Operating System.
-                Train. Debate. Analyze. Simulate Court.
-                Powered by Artificial Judicial Intelligence.
+              <div className="flex items-center gap-4 text-[10px] tracking-[0.3em] font-black text-slate-500 uppercase mb-6">
+                <span>Protocol: AI_SARA_v2</span>
+                <span className="w-1 h-1 rounded-full bg-slate-700" />
+                <span>Security: High</span>
+                <span className="w-1 h-1 rounded-full bg-slate-700" />
+                <span>Node: {activeTab.toUpperCase()}</span>
+              </div>
+              <p className="text-slate-400 max-w-2xl leading-relaxed text-lg font-medium">
+                The world's most advanced legal operating system. 
+                Full-spectrum case analysis, court simulation, and cross-statute mapping 
+                powered by local Neural Compute.
               </p>
             </div>
             <TrainerModule />

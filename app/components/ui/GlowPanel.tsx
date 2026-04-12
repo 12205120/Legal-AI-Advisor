@@ -11,8 +11,9 @@ export default function GlowPanel({
 }) {
   return (
     <div
-      className={`relative bg-black/40 backdrop-blur-xl border border-${color}-500/20 rounded-2xl p-6 shadow-[0_0_30px_rgba(0,255,255,0.1)] ${className}`}
+      className={`relative bg-slate-950/20 backdrop-blur-3xl border border-white/5 rounded-2xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all hover:bg-slate-900/30 ${className}`}
     >
+      <div className={`absolute top-0 left-10 right-10 h-[1px] bg-gradient-to-r from-transparent via-${color}-500/40 to-transparent`} />
       {children}
     </div>
   );

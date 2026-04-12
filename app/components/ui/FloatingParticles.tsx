@@ -1,36 +1,40 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { motion, useAnimation } from "framer-motion";
+import React, { useMemo, useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 export default function FloatingParticles() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const particles = useMemo(() => {
+    return Array.from({ length: 40 }).map((_, i) => ({
+      id: i,
+      xStart: Math.random() * 100,
+      yStart: Math.random() * 100,
+      size: Math.random() * 4 + 1,
+      duration: Math.random() * 20 + 20,
+      delay: Math.random() * 10,
+      color: i % 3 === 0 ? "#00e5ff" : i % 3 === 1 ? "#0ea5e9" : "#38bdf8",
+    }));
+  }, []);
 
   if (!mounted) return null;
 
-  // Generate 40 unique particles
-  const particles = Array.from({ length: 40 }).map((_, i) => ({
-    id: i,
-    size: Math.random() * 6 + 2,
-    xStart: Math.random() * 100,
-    yStart: Math.random() * 100,
-    duration: Math.random() * 20 + 10,
-    delay: Math.random() * 5,
-    color: i % 3 === 0 ? "#00eaff" : i % 3 === 1 ? "#b026ff" : "#39ff14",
-  }));
-
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden perspective-[800px] z-0">
-      {/* Dense vibrant volumetric glow clusters */}
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      {/* Background ambient light */}
       <motion.div
-        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="w-[800px] h-[800px] bg-[#00eaff]/20 rounded-full blur-[150px] absolute -top-[200px] -left-[200px] mix-blend-screen"
+        animate={{ opacity: [0.1, 0.2, 0.1] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="w-[800px] h-[800px] bg-[#00e5ff]/15 rounded-full blur-[150px] absolute -top-[200px] -left-[200px] mix-blend-screen"
       />
       <motion.div
-        animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.5, 0.3], rotate: [0, 90, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        className="w-[1000px] h-[1000px] bg-[#b026ff]/20 rounded-full blur-[200px] absolute -bottom-[300px] -right-[300px] mix-blend-screen"
+        animate={{ opacity: [0.05, 0.2, 0.05] }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        className="w-[1000px] h-[1000px] bg-[#0ea5e9]/10 rounded-full blur-[200px] absolute -bottom-[300px] -right-[300px] mix-blend-screen"
       />
 
       {/* 3D Flowing Mathematical Particles */}
