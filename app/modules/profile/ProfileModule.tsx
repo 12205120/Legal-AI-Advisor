@@ -44,8 +44,9 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Use environment variables for cloud deployment support
-      const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://127.0.0.1:5000";
+      // Direct Implementation: Use Vercel Serverless Functions (/api/auth)
+      // This ensures 24/7 automation without a local server.
+      const authUrl = "/api/auth";
 
       if (isLogin) {
         // Now calling Node.js instead of Python
@@ -131,7 +132,7 @@ export default function ProfileModule() {
     setIsLoading(true);
     const otpToVerify = manualOtp || formData.otp;
     try {
-      const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://127.0.0.1:5000";
+      const authUrl = "/api/auth";
       const res = await fetch(`${authUrl}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
