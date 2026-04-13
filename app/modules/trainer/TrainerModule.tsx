@@ -6,7 +6,6 @@ import Generator from "./submodules/Generator";
 import Library from "./submodules/Library";
 import Assessment from "./submodules/Assessment";
 import Virtual from "./submodules/Virtual";
-import NeuralTraining from "./submodules/NeuralTraining";
 
 export default function TrainerModule() {
   const [active, setActive] = useState("generator");
@@ -18,7 +17,6 @@ export default function TrainerModule() {
     { id: "library", label: "📚 Library AI" },
     { id: "assessment", label: "📝 Assessment" },
     { id: "court", label: "⚖ Virtual Court Bench" },
-    { id: "training", label: "🎛 Neural Training" },
   ];
 
   // Gesture-based hover detection for tabs
@@ -96,7 +94,6 @@ export default function TrainerModule() {
         {active === "library" && <Library />}
         {active === "assessment" && <Assessment />}
         {active === "court" && <Virtual />}
-        {active === "training" && <NeuralTraining />}
       </div>
     </div>
   );
