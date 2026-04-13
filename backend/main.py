@@ -18,6 +18,17 @@ from email.mime.multipart import MIMEMultipart
 import edge_tts
 import sqlite3
 from knowledge_vault import vault
+from passlib.context import CryptContext
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+from twilio.rest import Client as TwilioClient
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Password/OTP Hashing Context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ==============================
 # 1. SSL & ENVIRONMENT
@@ -599,82 +610,168 @@ The JSON object must have the following exact keys:
         return {"error": "AI bail suggestion temporarily unavailable."}
 
 # ==============================
-# 9. AUTHENTICATION & OTP
+# 9. PRODUCTION OTP SYSTEM
 # ==============================
-class OTPRequest(BaseModel):
-    email: str
 
-otp_store = {}
+class OTPManager:
+    def __init__(self):
+        self.store = {} # In-memory store: {email: {"hash": str, "expiry": datetime, "attempts": int, "phone": str}}
+        self.rate_limits = {} # {email: [timestamps]}
+
+    def _generate_otp(self):
+        return str(random.randint(100000, 999999))
+
+    def _hash_otp(self, otp: str):
+        return pwd_context.hash(otp)
+
+    def _verify_hash(self, otp: str, hashed: str):
+        return pwd_context.verify(otp, hashed)
+
+    def is_rate_limited(self, email: str):
+        now = datetime.now()
+        # Max 3 per hour
+        if email not in self.rate_limits:
+            return False
+        # Clean old timestamps
+        self.rate_limits[email] = [t for t in self.rate_limits[email] if t > now - timedelta(hours=1)]
+        return len(self.rate_limits[email]) >= 3
+
+    def send_and_store(self, email: str, phone: str = None):
+        if self.is_rate_limited(email):
+            return "RATE_LIMIT"
+
+        otp = self._generate_otp()
+        hashed = self._hash_otp(otp)
+        expiry = datetime.now() + timedelta(minutes=5)
+        
+        self.store[email] = {
+            "hash": hashed,
+            "expiry": expiry,
+            "attempts": 0,
+            "phone": phone
+        }
+        
+        # Track rate limit
+        if email not in self.rate_limits:
+            self.rate_limits[email] = []
+        self.rate_limits[email].append(datetime.now())
+
+        # DELIVERY
+        email_sent = self._dispatch_email(email, otp)
+        sms_sent = self._dispatch_sms(phone, otp) if phone else False
+        
+        return {"otp": otp, "email_sent": email_sent, "sms_sent": sms_sent}
+
+    def verify(self, email: str, otp: str):
+        if email not in self.store:
+            return "NOT_FOUND"
+        
+        data = self.store[email]
+        
+        if datetime.now() > data["expiry"]:
+            del self.store[email]
+            return "EXPIRED"
+        
+        if data["attempts"] >= 3:
+            del self.store[email]
+            return "TOO_MANY_ATTEMPTS"
+
+        if self._verify_hash(otp, data["hash"]):
+            del self.store[email]
+            return "SUCCESS"
+        else:
+            data["attempts"] += 1
+            return "INVALID"
+
+    def _dispatch_email(self, email: str, otp: str):
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        sender = os.environ.get("SENDER_EMAIL")
+        if not api_key or not sender:
+            logger.warning("SendGrid credentials missing. Email skipped.")
+            return False
+        
+        message = Mail(
+            from_email=sender,
+            to_emails=email,
+            subject='Nyaya AI - Security Verification Code',
+            html_content=f'<strong>Your Nyaya AI Verification Code is: {otp}</strong><br>Expires in 5 minutes.'
+        )
+        try:
+            sg = SendGridAPIClient(api_key)
+            sg.send(message)
+            return True
+        except Exception as e:
+            logger.error(f"SendGrid Error: {e}")
+            return False
+
+    def _dispatch_sms(self, phone: str, otp: str):
+        sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        token = os.environ.get("TWILIO_AUTH_TOKEN")
+        from_phone = os.environ.get("TWILIO_PHONE_NUMBER")
+        if not all([sid, token, from_phone]):
+            logger.warning("Twilio credentials missing. SMS skipped.")
+            return False
+        
+        try:
+            client = TwilioClient(sid, token)
+            client.messages.create(
+                body=f"Your Nyaya AI Verification Code is: {otp}. Valid for 5 minutes.",
+                from_=from_phone,
+                to=phone
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Twilio Error: {e}")
+            return False
+
+otp_manager = OTPManager()
 
 @app.post("/send_otp")
-async def send_otp(req: OTPRequest):
-    email = req.email
-    otp = str(random.randint(100000, 999999))
-    otp_store[email] = otp
+async def send_otp(req: dict):
+    email = req.get("email")
+    # Retrieve phone from DB or request
+    phone = req.get("phoneNumber")
     
-    sender_email = os.environ.get("SENDER_EMAIL")
-    sender_password = os.environ.get("SENDER_PASSWORD")
-    
-    logger.info(f"Generated OTP for {email}: {otp}")
-    
-    if sender_email and sender_password:
+    if not phone:
+        # Try to look up phone from DB if it's a login flow
         try:
-            msg = MIMEMultipart("alternative")
-            msg['Subject'] = 'Nyaya AI - Security Verification Code'
-            msg['From'] = f"Nyaya AI Security <{sender_email}>"
-            msg['To'] = email
+            conn = sqlite3.connect("nyaya_users.db")
+            c = conn.cursor()
+            c.execute("SELECT phone_number FROM users WHERE email=?", (email,))
+            res = c.fetchone()
+            if res:
+                phone = res[0]
+            conn.close()
+        except:
+            pass
 
-            html = f"""
-            <html>
-            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; color: #fff; padding: 20px;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #1a1a1b; border: 1px solid #303134; border-radius: 15px; padding: 40px; text-align: center;">
-                    <h1 style="color: #4285f4; margin-bottom: 20px;">Nyaya AI</h1>
-                    <h2 style="font-size: 24px; margin-bottom: 20px;">Verification Code</h2>
-                    <p style="color: #9aa0a6; font-size: 16px; margin-bottom: 30px;">
-                        Verify your identity to access your Nyaya AI account. This code will expire in 10 minutes.
-                    </p>
-                    <div style="background-color: #000; color: #4285f4; font-size: 36px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #4285f4;">
-                        {otp}
-                    </div>
-                    <p style="color: #9aa0a6; font-size: 12px;">
-                        If you did not request this code, please ignore this email.
-                        We also sent a notification to your registered mobile number.
-                    </p>
-                </div>
-                <div style="text-align: center; margin-top: 20px; color: #5f6368; font-size: 12px;">
-                    &copy; 2026 Nyaya AI Judicial Systems. Local-First Neural Engine.
-                </div>
-            </body>
-            </html>
-            """
-            msg.attach(MIMEText(html, "html"))
+    result = otp_manager.send_and_store(email, phone)
+    
+    if result == "RATE_LIMIT":
+        return {"status": "error", "message": "Too many requests. Try again later."}
+    
+    # In production, we don't return the OTP in JSON. 
+    # For user convenience during setup, we'll log it very clearly.
+    logger.info(f"--- NYAYA AI OTP DELIVERY ---")
+    logger.info(f"EMAIL: {email} | SMS: {phone}")
+    logger.info(f"OTP_CODE: {result['otp']}")
+    logger.info(f"Email Sent: {result['email_sent']} | SMS Sent: {result['sms_sent']}")
+    logger.info(f"-----------------------------")
 
-            with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                server.starttls()
-                server.login(sender_email, sender_password)
-                server.send_message(msg)
-            logger.info(f"HTML OTP Email sent successfully to {email} via SMTP.")
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
-            return {"status": "success", "message": "Email service error", "testing_otp": otp}
-    else:
-        logger.info(f"--- NYAYA AI AUTOMATED SYSTEM ---")
-        logger.info(f"TO: {email}")
-        logger.info(f"CHANNEL: Email (SMTP Mock)")
-        logger.info(f"CHANNEL: Mobile (SMS Gateway Mock)")
-        logger.info(f"VERIFICATION_CODE: {otp}")
-        logger.info(f"----------------------------------")
-
-    return {"status": "success", "message": "Verification code sent.", "testing_otp": otp}
+    return {
+        "status": "success", 
+        "message": "Verification code sent.",
+        "debug_otp": result['otp'] if not os.environ.get("PRODUCTION") else None
+    }
 
 @app.post("/verify_otp")
 async def verify_otp(data: dict):
     email = data.get("email")
     otp = data.get("otp")
-    if email in otp_store and str(otp_store[email]) == str(otp):
-        del otp_store[email]
-        
-        # Mark as verified in DB if exists
+    
+    status = otp_manager.verify(email, otp)
+    
+    if status == "SUCCESS":
         try:
             conn = sqlite3.connect("nyaya_users.db")
             c = conn.cursor()
@@ -683,9 +780,15 @@ async def verify_otp(data: dict):
             conn.close()
         except:
             pass
-            
         return {"status": "verified"}
-    return {"status": "failed", "error": "Invalid OTP or Email"}
+    elif status == "EXPIRED":
+        return {"status": "failed", "error": "Code expired. Please resend."}
+    elif status == "TOO_MANY_ATTEMPTS":
+        return {"status": "failed", "error": "Too many incorrect attempts. New code required."}
+    elif status == "NOT_FOUND":
+        return {"status": "failed", "error": "No active code found for this email."}
+    else:
+        return {"status": "failed", "error": "Invalid verification code."}
 
 @app.post("/register")
 async def register_user(data: dict):

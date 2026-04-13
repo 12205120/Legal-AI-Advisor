@@ -100,13 +100,17 @@ export default function ProfileModule() {
       });
       if (otpRes.ok) {
         const otpData = await otpRes.json();
-        if (otpData.testing_otp) {
-          setFormData(prev => ({ ...prev, otp: otpData.testing_otp }));
-          console.log("Nyaya AI Debug: OTP captured automatically:", otpData.testing_otp);
+        if (otpData.status === "success") {
+          if (otpData.debug_otp) {
+            setFormData(prev => ({ ...prev, otp: otpData.debug_otp }));
+            console.log("Nyaya AI Debug: OTP captured automatically:", otpData.debug_otp);
+          }
+          setIsOtpStep(true);
+        } else {
+          alert(otpData.message || "Failed to send OTP.");
         }
-        setIsOtpStep(true);
       } else {
-        alert("Failed to send OTP.");
+        alert("Authentication server error.");
       }
     } catch (err) {
       console.error(err);
@@ -131,7 +135,7 @@ export default function ProfileModule() {
         setIsOtpStep(false);
         setIsAuthenticated(true);
       } else {
-        alert("Invalid OTP!");
+        alert(data.error || "Invalid Verification Code!");
       }
     } catch (err) {
       console.error(err);
