@@ -145,40 +145,139 @@ export default function ProfileModule() {
 
   // Dashboard View post-login
   if (isAuthenticated) {
+    const stats = [
+      { label: "Total Usage", value: "24.5", unit: "Hrs", icon: "🕒", color: "from-blue-500/20 to-blue-600/20" },
+      { label: "Learnings", value: "12", unit: "Modules", icon: "📚", color: "from-purple-500/20 to-purple-600/20" },
+      { label: "Cases Solved", value: "156", unit: "Cases", icon: "⚖️", color: "from-emerald-500/20 to-emerald-600/20" },
+      { label: "AI Interactions", value: "842", unit: "Queries", icon: "🤖", color: "from-orange-500/20 to-orange-600/20" },
+    ];
+
+    const modules = [
+      { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-blue-500" },
+      { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-purple-500" },
+      { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-emerald-500" },
+    ];
+
+    const history = [
+      { action: "Consulted AI Sara on CrPC Sec 144", time: "2 hours ago", type: "AI Consult" },
+      { action: "Completed Module: BNS Fundamentals", time: "5 hours ago", type: "Learning" },
+      { action: "Drafted Legal Notice: Rent Dispute", time: "Yesterday", type: "Drafting" },
+      { action: "Virtual Court Simulation: Session 4", time: "2 days ago", type: "Simulation" },
+    ];
+
     return (
-      <div className="min-h-[800px] w-full flex items-center justify-center p-6 text-white relative">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black z-0" />
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-          className="relative z-10 w-full max-w-2xl bg-[#1a1a1b] border border-[#303134] p-12 rounded-2xl text-center shadow-2xl"
-        >
-          <div className="w-24 h-24 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-4xl mb-6 text-white font-bold">
-            {formData.firstName?.[0] || formData.email[0].toUpperCase()}
-          </div>
-          <h2 className="text-3xl font-google text-white mb-2">Welcome, {formData.firstName} {formData.lastName}</h2>
-          <p className="text-gray-400 mb-8">{formData.email}</p>
-          
-          <div className="space-y-4 text-left">
-            <div className="bg-[#242426] p-4 rounded-xl border border-[#3c4043]">
-              <div className="text-xs text-blue-400 uppercase tracking-wider mb-1">Role</div>
-              <div className="text-lg font-medium">{activeRole}</div>
+      <div className="min-h-screen w-full bg-black text-white p-4 md:p-10 relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -z-10" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] -z-10" />
+
+        <div className="max-w-7xl mx-auto space-y-10">
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-[#1a1a1b]/50 backdrop-blur-xl border border-white/10 p-8 rounded-3xl">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-4xl font-bold shadow-xl shadow-blue-500/20">
+                {formData.firstName?.[0] || formData.email[0].toUpperCase()}
+              </div>
+              <div className="text-left">
+                <h1 className="text-4xl font-google font-bold text-white mb-2">Welcome back, {formData.firstName}!</h1>
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-semibold uppercase tracking-wider">
+                    {activeRole}
+                  </span>
+                  <span className="text-gray-400 text-sm">{formData.email}</span>
+                </div>
+              </div>
             </div>
-            <div className="bg-[#242426] p-4 rounded-xl border border-[#3c4043]">
-              <div className="text-xs text-blue-400 uppercase tracking-wider mb-1">Email</div>
-              <div className="text-lg font-medium">{formData.email}</div>
+            <button 
+              onClick={() => { 
+                setIsAuthenticated(false); 
+                setIsOtpStep(false);
+                setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
+              }} 
+              className="px-8 py-3 bg-[#242426] hover:bg-[#2d2d30] border border-[#3c4043] rounded-xl text-white font-google transition-all flex items-center gap-2 group"
+            >
+              <span className="group-hover:translate-x-1 transition-transform">Sign Out</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
+            </button>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {stats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -5 }}
+                className={`p-6 bg-gradient-to-br ${stat.color} backdrop-blur-md border border-white/5 rounded-3xl relative overflow-hidden group`}
+              >
+                <div className="absolute -right-4 -top-4 text-6xl opacity-5 group-hover:scale-125 transition-transform duration-500">{stat.icon}</div>
+                <div className="flex flex-col items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-2xl">{stat.icon}</div>
+                  <div>
+                    <div className="text-3xl font-bold font-google tracking-tight">{stat.value} <span className="text-sm font-medium opacity-60">{stat.unit}</span></div>
+                    <div className="text-gray-400 text-sm mt-1">{stat.label}</div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            {/* Learning Progress */}
+            <div className="lg:col-span-2 space-y-6">
+              <h2 className="text-2xl font-google font-bold ml-2">Module Rankings</h2>
+              <div className="bg-[#1a1a1b]/50 backdrop-blur-xl border border-white/10 p-8 rounded-3xl space-y-8">
+                {modules.map((mod, i) => (
+                  <div key={i} className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300 font-medium">{mod.name || (mod as any).label}</span>
+                      <span className="text-blue-400 font-bold">{mod.progress}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${mod.progress}%` }}
+                        transition={{ duration: 1, delay: 0.5 + (i * 0.2) }}
+                        className={`h-full ${mod.color} rounded-full relative`}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse" />
+                      </motion.div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* History Feed */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-google font-bold ml-2">History Log</h2>
+              <div className="bg-[#1a1a1b]/50 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
+                <div className="divide-y divide-white/5">
+                  {history.map((item, i) => (
+                    <motion.div 
+                      key={i}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.8 + (i * 0.1) }}
+                      className="p-5 hover:bg-white/5 transition-colors cursor-default group"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{item.type}</span>
+                        <span className="text-[10px] text-gray-500 uppercase">{item.time}</span>
+                      </div>
+                      <p className="text-sm text-gray-200 font-medium group-hover:text-white transition-colors">{item.action}</p>
+                    </motion.div>
+                  ))}
+                </div>
+                <button className="w-full py-4 text-sm text-gray-500 hover:text-white hover:bg-white/5 transition-all font-medium border-t border-white/5">
+                  View All History
+                </button>
+              </div>
             </div>
           </div>
-          
-          <button 
-            onClick={() => { 
-              setIsAuthenticated(false); 
-              setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
-            }} 
-            className="mt-10 px-10 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-google transition-all"
-          >
-            Sign Out
-          </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
