@@ -838,48 +838,9 @@ async def verify_otp(data: dict):
     else:
         return {"status": "failed", "error": "Invalid verification code."}
 
-@app.post("/register")
-async def register_user(data: dict):
-    email = data.get("email")
-    password = data.get("password")
-    first_name = data.get("first_name", "")
-    last_name = data.get("last_name", "")
-    phone_number = data.get("phone_number", "")
-    role = data.get("role")
-    college = data.get("college", "")
-    reg_no = data.get("registration_no", "")
-    govt_id = data.get("govt_id", "")
-    judicial_id = data.get("judicial_id", "")
-    
-    try:
-        conn = sqlite3.connect("nyaya_users.db")
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO users (email, password, first_name, last_name, phone_number, role, college, registration_no, govt_id, judicial_id, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                  (email, password, first_name, last_name, phone_number, role, college, reg_no, govt_id, judicial_id, False))
-        conn.commit()
-        conn.close()
-        return {"status": "success"}
-    except Exception as e:
-        logger.error(f"Error saving to DB: {e}")
-        return {"status": "error", "error": str(e)}
 
-@app.post("/login")
-async def login_user(data: dict):
-    email = data.get("email")
-    password = data.get("password")
-    try:
-        conn = sqlite3.connect("nyaya_users.db")
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
-        user = c.fetchone()
-        conn.close()
-        if user:
-            return {"status": "success", "user": dict(user)}
-        return {"status": "error", "error": "Invalid credentials"}
-    except Exception as e:
-        logger.error(f"Login DB error: {e}")
-        return {"status": "error", "error": str(e)}
+# AUTHENTICATION MIGRATED TO NODE.JS (PORT 5000)
+# These endpoints are now handled by the Node.js backend for unified persistence.
 
 if __name__ == "__main__":
     import uvicorn

@@ -44,11 +44,12 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
-      const authUrl = "http://127.0.0.1:5000";
+      // Use environment variables for cloud deployment support
+      const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://127.0.0.1:5000";
 
       if (isLogin) {
-        const loginRes = await fetch(`${backendUrl}/login`, {
+        // Now calling Node.js instead of Python
+        const loginRes = await fetch(`${authUrl}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: formData.email, password: formData.password })
@@ -62,12 +63,13 @@ export default function ProfileModule() {
             lastName: loginData.user.last_name || ""
           }));
         } else {
-          alert("Invalid Login credentials.");
+          alert(loginData.error || "Invalid Login credentials.");
           setIsLoading(false);
           return;
         }
       } else {
-        const regRes = await fetch(`${backendUrl}/register`, {
+        // Now calling Node.js instead of Python
+        const regRes = await fetch(`${authUrl}/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
@@ -82,8 +84,9 @@ export default function ProfileModule() {
             judicial_id: formData.judicialId
           })
         });
-        if (!regRes.ok) {
-          alert("Registration failed.");
+        const regData = await regRes.json();
+        if (regData.status !== "success") {
+          alert(regData.error || "Registration failed.");
           setIsLoading(false);
           return;
         }
@@ -102,6 +105,11 @@ export default function ProfileModule() {
           if (otpData.debugOTP) {
             setFormData(prev => ({ ...prev, otp: otpData.debugOTP }));
             console.log("Nyaya AI Debug: OTP captured automatically:", otpData.debugOTP);
+            // Optionally auto-verify if debug mode is active
+            setTimeout(() => {
+                const fakeEvent = { preventDefault: () => {} } as any;
+                handleOtpVerify(fakeEvent, otpData.debugOTP);
+            }, 1000);
           }
           setIsOtpStep(true);
         } else {
@@ -118,15 +126,16 @@ export default function ProfileModule() {
     }
   };
 
-  const handleOtpVerify = async (e: React.FormEvent) => {
+  const handleOtpVerify = async (e: React.FormEvent, manualOtp?: string) => {
     e.preventDefault();
     setIsLoading(true);
+    const otpToVerify = manualOtp || formData.otp;
     try {
-      const authUrl = "http://127.0.0.1:5000";
+      const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://127.0.0.1:5000";
       const res = await fetch(`${authUrl}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: formData.email, otp: formData.otp })
+        body: JSON.stringify({ email: formData.email, otp: otpToVerify })
       });
       const data = await res.json();
       if (data.status === "success") {
