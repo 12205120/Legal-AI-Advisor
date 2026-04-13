@@ -48,3 +48,7 @@ backend/checkpoints/
 backend/.cache/
 backend/nyaya_index/
 backend/*.pyc
+
+# Node.js Auth Backend
+backend-node/node_modules/
+backend-node/npm-debug.log*
