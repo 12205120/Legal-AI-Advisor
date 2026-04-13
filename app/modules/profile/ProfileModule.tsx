@@ -45,6 +45,7 @@ export default function ProfileModule() {
     setIsLoading(true);
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+      const authUrl = "http://127.0.0.1:5000";
 
       if (isLogin) {
         const loginRes = await fetch(`${backendUrl}/login`, {
@@ -55,7 +56,6 @@ export default function ProfileModule() {
         const loginData = await loginRes.json();
         if (loginData.status === "success") {
           setUserProfile(loginData.user);
-          // Set names from backend if available
           setFormData(prev => ({
             ...prev,
             firstName: loginData.user.first_name || "",
@@ -90,12 +90,12 @@ export default function ProfileModule() {
       }
 
       // Both flows send an OTP via the new Node.js server
-      const authUrl = "http://127.0.0.1:5000";
       const otpRes = await fetch(`${authUrl}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email })
       });
+
       if (otpRes.ok) {
         const otpData = await otpRes.json();
         if (otpData.status === "success") {
@@ -129,7 +129,7 @@ export default function ProfileModule() {
         body: JSON.stringify({ email: formData.email, otp: formData.otp })
       });
       const data = await res.json();
-      if (data.status === "success" || data.status === "verified") {
+      if (data.status === "success") {
         setIsOtpStep(false);
         setIsAuthenticated(true);
       } else {
@@ -137,6 +137,7 @@ export default function ProfileModule() {
       }
     } catch (err) {
       console.error(err);
+      alert("Verification server reachable but failed.");
     } finally {
       setIsLoading(false);
     }
