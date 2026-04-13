@@ -54,7 +54,12 @@ export async function POST(request: Request) {
             });
         }
     } catch (error: any) {
-        console.error('Send OTP API Error:', error);
-        return NextResponse.json({ status: 'failed', error: 'Failed to send email' }, { status: 500 });
+        console.error('--- OTP DELIVERY FAILURE ---');
+        console.error('Error Details:', error.message);
+        console.error('Stack:', error.stack);
+        if (error.code === 'EAUTH') {
+            console.error('CHECK: GMAIL_USER and GMAIL_PASS might be incorrect or missing App Password.');
+        }
+        return NextResponse.json({ status: 'failed', error: 'Failed to send email: ' + error.message }, { status: 500 });
     }
 }
