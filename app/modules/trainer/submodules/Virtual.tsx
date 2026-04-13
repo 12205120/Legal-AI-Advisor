@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBailApplications, BailApplication } from "../../../lib/bail_store";
+import { LegalService, ArgumentAnalysis } from "../../../lib/legal_service";
 
 export default function Virtual() {
   const searchParams = useSearchParams();
@@ -47,6 +48,10 @@ export default function Virtual() {
   const [showBailPanel, setShowBailPanel] = useState(false);
   const [savedBails, setSavedBails] = useState<BailApplication[]>([]);
   const [presentingBailId, setPresentingBailId] = useState<string | null>(null);
+  
+  // Analysis
+  const [analysis, setAnalysis] = useState<ArgumentAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -323,12 +328,27 @@ export default function Virtual() {
     setShowBailPanel(false);
   };
 
+  const runJudicialAnalysis = async () => {
+    const pros = transcript.filter(t => t.role.includes("Prosecutor") || (role === "Victim" && t.role === "YOU")).map(t => t.text).join("\n");
+    const def = transcript.filter(t => t.role.includes("Defense") || (role === "Accused" && t.role === "YOU")).map(t => t.text).join("\n");
+    
+    setIsAnalyzing(true);
+    try {
+      const result = await LegalService.analyzeArguments(pros, def, scenario);
+      setAnalysis(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   // ── SETUP PHASE ──────────────────────────────────────────────────────
   if (setupPhase) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="bg-black/60 border border-cyan-500/30 p-10 rounded-3xl w-full max-w-2xl backdrop-blur-xl shadow-[0_0_50px_rgba(0,255,255,0.1)]">
-          <h2 className="text-3xl text-cyan-400 mb-8 text-center tracking-[0.2em] font-light">
+        <div className="bg-black/60 border border-red-500/30 p-10 rounded-3xl w-full max-w-2xl backdrop-blur-xl shadow-[0_0_50px_rgba(242,28,28,0.1)]">
+          <h2 className="text-3xl text-red-500 mb-8 text-center tracking-[0.2em] font-black uppercase">
             SUPREME COURT SETUP
           </h2>
 
@@ -351,12 +371,12 @@ export default function Virtual() {
             </div>
 
             {/* Scenario Preview */}
-            <div className="bg-black/40 border border-cyan-500/30 rounded-xl p-4">
-              <label className="text-[10px] text-cyan-500 tracking-widest uppercase mb-2 block font-bold flex items-center justify-between">
+            <div className="bg-black/40 border border-red-500/30 rounded-xl p-4">
+              <label className="text-[10px] text-red-500 tracking-widest uppercase mb-2 block font-bold flex items-center justify-between">
                 <span>Case Scenario (Auto-Generated)</span>
                 {isLoadingScenario && (
-                  <span className="text-cyan-400/50 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse inline-block" />
+                  <span className="text-red-400/50 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse inline-block" />
                     Generating...
                   </span>
                 )}
@@ -372,7 +392,7 @@ export default function Virtual() {
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="text-xs text-cyan-500 tracking-widest uppercase mb-2 block">
+                <label className="text-xs text-red-500 tracking-widest uppercase mb-2 block">
                   Your Role
                 </label>
                 <div className="flex rounded-xl overflow-hidden border border-white/10">
@@ -382,7 +402,7 @@ export default function Virtual() {
                       onClick={() => setRole(r)}
                       className={`flex-1 p-3 text-sm transition-colors ${
                         role === r
-                          ? "bg-cyan-500/20 text-cyan-300"
+                          ? "bg-red-500/20 text-red-300"
                           : "bg-black/50 text-white/50 hover:bg-white/5"
                       }`}
                     >
@@ -436,9 +456,9 @@ export default function Virtual() {
 
             <button
               onClick={handleEnterCourt}
-              className="w-full mt-4 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/50 rounded-xl text-cyan-400 font-bold tracking-[0.2em] uppercase transition-all shadow-[0_0_20px_rgba(0,255,255,0.1)]"
+              className="w-full mt-4 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 font-bold tracking-[0.2em] uppercase transition-all shadow-[0_0_20px_rgba(242,28,28,0.1)]"
             >
-              ⚖ Enter Courtroom
+              ⚖ Enter BNSS Courtroom
             </button>
           </div>
         </div>
@@ -526,7 +546,7 @@ export default function Virtual() {
 
       {/* Header */}
       <div className="flex justify-between items-center px-6 py-3 bg-black/40 border-b border-white/5 rounded-2xl flex-wrap gap-3">
-        <div className="text-cyan-500 text-xs tracking-[0.3em] font-bold">LIVE HEARING</div>
+        <div className="text-red-500 text-xs tracking-[0.3em] font-bold">LIVE BNSS HEARING</div>
         <div className="text-orange-400 text-sm tracking-widest uppercase font-semibold">
           ⚖ {selectedLaw}
         </div>
@@ -538,9 +558,9 @@ export default function Virtual() {
                 setSavedBails(getBailApplications());
                 setShowBailPanel(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 rounded-lg text-emerald-300 text-[10px] sm:text-xs font-bold tracking-widest uppercase transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-red-600/15 hover:bg-red-600/25 border border-red-600/40 rounded-lg text-red-200 text-[10px] sm:text-xs font-bold tracking-widest uppercase transition-all"
             >
-              🗄 Present Bail
+              🗄 Present Bail (BNSS)
               {savedBails.length > 0 && (
                 <span className="w-4 h-4 bg-emerald-500 text-black rounded-full text-[9px] flex items-center justify-center font-black">
                   {savedBails.length}
@@ -561,11 +581,11 @@ export default function Virtual() {
             </button>
           )}
 
-          <button
+            <button
             onClick={() => setShowSubtitles(!showSubtitles)}
             className={`text-[10px] px-3 py-1.5 rounded border transition-all ${
               showSubtitles
-                ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
+                ? "bg-red-500/20 border-red-500/50 text-red-400"
                 : "bg-white/5 border-white/10 text-white/40"
             }`}
           >
@@ -609,8 +629,8 @@ export default function Virtual() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-emerald-300 tracking-widest uppercase">
-                  🗄 Bail Applications Vault
+                <h3 className="text-lg font-bold text-red-400 tracking-widest uppercase">
+                  🗄 BNSS Bail Applications Vault
                 </h3>
                 <button
                   onClick={() => setShowBailPanel(false)}
@@ -659,7 +679,7 @@ export default function Virtual() {
                       ) : (
                         <button
                           onClick={() => presentBail(bail)}
-                          className="mt-3 w-full px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 text-xs rounded-lg font-bold tracking-widest uppercase transition-all"
+                          className="mt-3 w-full px-3 py-2 bg-red-600/15 hover:bg-red-600/30 border border-red-600/30 text-red-300 text-xs rounded-lg font-bold tracking-widest uppercase transition-all"
                         >
                           ⚖ Present to Court
                         </button>
@@ -739,11 +759,11 @@ export default function Virtual() {
                 }
               }}
               placeholder="Type your argument... (Enter to send)"
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400 resize-none h-20"
+              className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 resize-none h-20"
             />
             <button
               onClick={sendMessage}
-              className="w-full mt-1.5 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-cyan-400 text-xs font-bold tracking-widest uppercase transition-all"
+              className="w-full mt-1.5 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 rounded-lg text-red-400 text-xs font-bold tracking-widest uppercase transition-all"
             >
               Present Argument
             </button>
@@ -778,14 +798,71 @@ export default function Virtual() {
 
           {/* Transcript */}
           <div className="flex-1 bg-black/40 border border-white/5 rounded-3xl p-5 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-            <div className="mb-3 pb-3 border-b border-white/10 text-xs text-white/60 leading-relaxed font-serif max-h-24 overflow-y-auto pr-1">
-              <span className="text-cyan-400 text-[10px] tracking-widest uppercase block mb-1 font-sans font-bold">
-                Case Scenario:
-              </span>
-              <span className={`whitespace-pre-line ${isLoadingScenario ? "animate-pulse text-cyan-500/50" : ""}`}>
+            <div className="mb-3 pb-3 border-b border-white/10 text-xs text-white/60 leading-relaxed font-serif max-h-24 overflow-y-auto pr-1 flex flex-col items-start gap-2">
+              <div className="flex items-center justify-between w-full">
+                <span className="text-red-500 text-[10px] tracking-widest uppercase font-sans font-bold">
+                  Case Scenario (BNSS):
+                </span>
+                <button 
+                  onClick={runJudicialAnalysis}
+                  disabled={isAnalyzing}
+                  className="px-2 py-1 bg-red-600/20 border border-red-600/40 rounded text-[9px] text-red-400 hover:bg-red-600/30 transition-all font-bold tracking-widest uppercase disabled:opacity-50"
+                >
+                  {isAnalyzing ? "Analyzing..." : "Judge's Deep Analysis"}
+                </button>
+              </div>
+              <span className={`whitespace-pre-line ${isLoadingScenario ? "animate-pulse text-red-500/50" : ""}`}>
                 {scenario}
               </span>
             </div>
+
+            {/* Analysis Overlay */}
+            {analysis && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="absolute inset-0 z-40 bg-black/90 backdrop-blur-xl p-6 m-4 rounded-3xl border border-red-500/30 overflow-y-auto"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-red-500 tracking-widest uppercase flex items-center gap-2">
+                    ⚖️ Judicial Analysis Report
+                  </h3>
+                  <button onClick={() => setAnalysis(null)} className="text-white/40 hover:text-white">✕</button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-red-600/10 border border-red-600/20 rounded-2xl">
+                    <div className="text-[10px] text-red-400 uppercase font-black mb-1">Pros. Strength</div>
+                    <div className="text-2xl font-black text-white">{analysis.prosecutionStrength}/10</div>
+                  </div>
+                  <div className="p-4 bg-yellow-600/10 border border-yellow-600/20 rounded-2xl">
+                    <div className="text-[10px] text-yellow-400 uppercase font-black mb-1">Def. Strength</div>
+                    <div className="text-2xl font-black text-white">{analysis.defenseStrength}/10</div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-xs text-red-400 uppercase font-black mb-2 tracking-widest">Legal Analysis</h4>
+                    <p className="text-sm text-white/80 leading-relaxed font-serif border-l-2 border-red-600 pl-4">{analysis.benchOpinion}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs text-red-400 uppercase font-black mb-2 tracking-widest">Contradictions Found</h4>
+                    <ul className="list-disc list-inside text-xs text-white/60 space-y-1">
+                      {analysis.contradictions.map((c, idx) => <li key={idx}>{c}</li>)}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-xs text-red-400 uppercase font-black mb-2 tracking-widest">Citations & Precedents</h4>
+                    <div className="flex flex-wrap gap-2">
+                       {analysis.legalPrecedents.map((p, idx) => (
+                         <span key={idx} className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-white/40">{p}</span>
+                       ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {transcript.map((line, i) => (
@@ -796,10 +873,10 @@ export default function Virtual() {
                   <span
                     className={`text-[10px] font-bold tracking-wider uppercase mb-1 ${
                       line.role === "YOU"
-                        ? "text-cyan-400"
+                        ? "text-red-500"
                         : line.role === judge || line.role === "SYSTEM"
-                        ? "text-orange-400"
-                        : "text-purple-400"
+                        ? "text-[#ecb31c]"
+                        : "text-red-400"
                     }`}
                   >
                     {line.role}
@@ -807,10 +884,10 @@ export default function Virtual() {
                   <div
                     className={`p-3 rounded-2xl text-sm leading-relaxed max-w-[88%] ${
                       line.role === "YOU"
-                        ? "bg-cyan-500/10 text-cyan-100 border border-cyan-500/20 rounded-tr-sm"
+                        ? "bg-red-500/10 text-red-50 border border-red-500/20 rounded-tr-sm"
                         : line.role === judge || line.role === "SYSTEM"
-                        ? "bg-orange-500/10 text-orange-100 border border-orange-500/20 rounded-tl-sm italic"
-                        : "bg-purple-500/10 text-purple-100 border border-purple-500/20 rounded-tl-sm"
+                        ? "bg-[#ecb31c]/10 text-yellow-50 border border-[#ecb31c]/20 rounded-tl-sm italic"
+                        : "bg-red-950/30 text-red-100 border border-red-500/20 rounded-tl-sm"
                     }`}
                   >
                     {line.text}
@@ -823,7 +900,7 @@ export default function Virtual() {
         </div>
 
         {/* RIGHT — Sara/Opponent */}
-        <div className="col-span-1 bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden relative flex flex-col">
+        <div className="col-span-1 bg-black/50 border border-white/10 rounded-3xl overflow-hidden relative flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
           <div className="absolute top-4 right-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-white/10 text-right">
             <div className="text-[10px] text-white/50 uppercase tracking-widest">Opposition</div>
             <div className="text-xs text-white uppercase font-bold">
@@ -875,7 +952,7 @@ export default function Virtual() {
                 {/* Speaking wave animation */}
                 {!saraVideoUrl && (
                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
-                    <div className="w-24 h-24 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-4xl mb-4">
+                    <div className="w-24 h-24 rounded-full bg-red-600/10 border border-red-600/30 flex items-center justify-center text-4xl mb-4">
                       ⚖
                     </div>
                     <div className="flex items-end gap-[3px] h-6 opacity-70">
@@ -890,11 +967,11 @@ export default function Virtual() {
                             duration: 1.0 + Math.random() * 0.6,
                             delay: i * 0.08,
                           }}
-                          className="w-[3px] bg-purple-400 rounded-full"
+                          className="w-[3px] bg-red-500 rounded-full"
                         />
                       ))}
                     </div>
-                    <div className="mt-3 text-purple-400/60 text-[10px] tracking-[0.3em] uppercase">
+                    <div className="mt-3 text-red-500/60 text-[10px] tracking-[0.3em] uppercase font-bold">
                       Sara — AI Counsel
                     </div>
                   </div>
@@ -903,7 +980,7 @@ export default function Virtual() {
                 {/* Subtitles */}
                 {showSubtitles && liveSubtitleText && !saraVideoUrl && (
                   <div className="absolute bottom-4 left-0 right-0 z-30 px-4">
-                    <div className="bg-black/80 px-4 py-2 rounded-lg border border-purple-500/30 text-purple-100 text-xs font-medium text-center backdrop-blur-md">
+                    <div className="bg-black/80 px-4 py-2 rounded-lg border border-red-500/30 text-red-100 text-xs font-medium text-center backdrop-blur-md">
                       {liveSubtitleText}
                     </div>
                   </div>
@@ -911,7 +988,7 @@ export default function Virtual() {
                 {/* Fallback for regular subtitles if video is playing */}
                 {showSubtitles && saraVideoUrl && (
                   <div className="absolute bottom-4 left-0 right-0 z-30 px-4">
-                    <div className="bg-black/80 px-4 py-2 rounded-lg border border-purple-500/30 text-purple-100 text-xs font-medium text-center backdrop-blur-md">
+                    <div className="bg-black/80 px-4 py-2 rounded-lg border border-red-500/30 text-red-100 text-xs font-medium text-center backdrop-blur-md">
                       {transcript.filter(t => t.role !== "YOU" && t.role !== "SYSTEM" && t.role !== judge).pop()?.text || "..."}
                     </div>
                   </div>
@@ -928,7 +1005,7 @@ export default function Virtual() {
           <div className="p-4 bg-black/40 border-t border-white/5">
             <div className="flex items-center justify-between text-xs tracking-widest uppercase text-white/40 mb-2">
               <span>STATUS</span>
-              <span className={opponent === "AI Sara" ? "text-purple-400" : "text-cyan-400"}>
+              <span className={opponent === "AI Sara" ? "text-red-500 font-bold" : "text-yellow-500 font-bold"}>
                 {opponent === "AI Sara" ? "AI ENGINE ACTIVE" : "AWAITING HUMAN"}
               </span>
             </div>

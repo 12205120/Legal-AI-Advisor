@@ -19,16 +19,16 @@ interface LibraryData {
 }
 
 const quickTopics = [
-  "Right to Bail in India",
-  "Article 21 Right to Life",
-  "IPC Section 302 Murder",
-  "Cybercrime under IT Act",
-  "Domestic Violence Act",
-  "POCSO Act",
-  "GST and Tax Laws",
-  "Intellectual Property Rights",
-  "Consumer Protection Act",
-  "Insolvency and Bankruptcy Code",
+  "BNS 2023 Overview",
+  "BNSS Procedure Changes",
+  "Bail under BNSS Section 478",
+  "Zero FIR Regulation",
+  "Police Custody vs Judicial Custody",
+  "Rights of the Accused",
+  "Victim compensation BNSS",
+  "Cybercrime under BNS",
+  "Electronic Evidence BNSS",
+  "Judicial Overhaul 2024",
 ];
 
 export default function Library() {
@@ -65,14 +65,14 @@ export default function Library() {
   return (
     <div className="space-y-6">
       {/* Search Bar */}
-      <div className="bg-black/40 border border-cyan-500/20 rounded-2xl p-6">
-        <h2 className="text-lg font-bold text-cyan-400 tracking-widest uppercase mb-4">
-          📚 AI Legal Knowledge Library
+      <div className="bg-black/40 border border-red-500/20 rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-red-500 tracking-widest uppercase mb-4">
+          📚 BNSS/BNS Intelligence Library
         </h2>
         <div className="flex gap-3">
           <input
             type="text"
-            placeholder="Search any Indian law, act, right, or legal concept..."
+            placeholder="Search BNS, BNSS, or IPC mapping..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -81,11 +81,11 @@ export default function Library() {
           <button
             onClick={() => handleSearch()}
             disabled={loading}
-            className="px-6 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/20 whitespace-nowrap"
+            className="px-6 py-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 disabled:opacity-40 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-500/20 whitespace-nowrap uppercase tracking-widest text-xs"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : "Search"}
+            ) : "Deep Search"}
           </button>
         </div>
 
@@ -95,7 +95,7 @@ export default function Library() {
             <button
               key={topic}
               onClick={() => handleSearch(topic)}
-              className="px-3 py-1.5 bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 rounded-lg text-white/60 hover:text-cyan-300 text-xs transition-all"
+              className="px-3 py-1.5 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 rounded-lg text-white/60 hover:text-red-300 text-xs transition-all"
             >
               {topic}
             </button>
@@ -107,9 +107,9 @@ export default function Library() {
       <AnimatePresence>
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="bg-black/30 border border-cyan-500/20 rounded-2xl p-12 flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
-            <p className="text-cyan-400/60 text-sm tracking-widest uppercase animate-pulse">Consulting Legal Archives...</p>
+            className="bg-black/30 border border-red-500/20 rounded-2xl p-12 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+            <p className="text-red-500/60 text-sm tracking-widest uppercase animate-pulse font-bold">Consulting Legal Vault...</p>
           </motion.div>
         )}
 
@@ -128,14 +128,14 @@ export default function Library() {
             ) : (
               <>
                 {/* Title & Overview */}
-                <div className="bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/30 rounded-2xl p-6">
-                  <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold mb-1">Legal Article</p>
-                  <h2 className="text-2xl font-bold text-white mb-3">{result.title}</h2>
-                  <p className="text-white/70 leading-relaxed font-serif">{result.overview}</p>
+                <div className="bg-black/60 border border-red-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(242,28,28,0.1)]">
+                  <p className="text-[10px] text-red-500 uppercase tracking-widest font-black mb-1">Judicial Knowledge Node</p>
+                  <h2 className="text-2xl font-black text-white mb-3 tracking-tight">{result.title}</h2>
+                  <p className="text-gray-300 leading-relaxed font-serif text-sm">{result.overview}</p>
                   {result.relevantSections && (
-                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
-                      <span className="text-[10px] text-cyan-400 uppercase tracking-wider font-bold">Sections:</span>
-                      <span className="text-cyan-300 text-sm font-mono">{result.relevantSections}</span>
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-red-600/10 border border-red-600/30 rounded-lg">
+                      <span className="text-[10px] text-red-400 uppercase tracking-wider font-black">Statutes:</span>
+                      <span className="text-red-300 text-sm font-mono">{result.relevantSections}</span>
                     </div>
                   )}
                 </div>
@@ -143,11 +143,11 @@ export default function Library() {
                 {/* Key Provisions */}
                 {result.keyProvisions && (
                   <div className="bg-black/40 border border-white/10 rounded-2xl p-6">
-                    <h3 className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-4">Key Provisions</h3>
-                    <ul className="space-y-2">
+                    <h3 className="text-[10px] text-[#ecb31c] uppercase tracking-widest font-black mb-4">Key Provisions</h3>
+                    <ul className="space-y-3">
                       {result.keyProvisions.map((p, i) => (
-                        <li key={i} className="flex items-start gap-3 text-sm text-white/70">
-                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-[10px] flex items-center justify-center font-bold mt-0.5">
+                        <li key={i} className="flex items-start gap-3 text-sm text-gray-400 leading-relaxed">
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600/20 border border-red-600/40 text-red-400 text-[10px] flex items-center justify-center font-black mt-0.5">
                             {i + 1}
                           </span>
                           {p}
@@ -159,15 +159,18 @@ export default function Library() {
 
                 {/* Landmark Cases */}
                 {result.landmarkCases && result.landmarkCases.length > 0 && (
-                  <div className="bg-black/40 border border-purple-500/20 rounded-2xl p-6">
-                    <h3 className="text-[10px] text-purple-400 uppercase tracking-widest font-bold mb-4">⚖ Landmark Cases</h3>
+                  <div className="bg-black/60 border border-red-500/20 rounded-2xl p-6">
+                    <h3 className="text-[10px] text-red-500 uppercase tracking-widest font-black mb-4 flex items-center gap-2">
+                       <span className="w-1.5 h-4 bg-red-600 rounded-full" />
+                       Landmark Precedents
+                    </h3>
                     <div className="space-y-3">
                       {result.landmarkCases.map((c, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl">
-                          <div className="flex-shrink-0 text-purple-400 mt-0.5">📋</div>
+                        <div key={i} className="flex items-start gap-4 p-4 bg-red-600/5 border border-red-500/10 rounded-xl hover:bg-red-600/10 transition-all">
+                          <div className="flex-shrink-0 text-red-600 font-black">⚖</div>
                           <div>
-                            <p className="text-purple-300 font-semibold text-sm">{c.name}</p>
-                            <p className="text-white/60 text-xs mt-0.5">{c.ruling}</p>
+                            <p className="text-red-300 font-bold text-sm uppercase tracking-tight">{c.name}</p>
+                            <p className="text-gray-400 text-xs mt-1 leading-relaxed font-serif italic">"{c.ruling}"</p>
                           </div>
                         </div>
                       ))}
@@ -177,9 +180,9 @@ export default function Library() {
 
                 {/* Practical Implication */}
                 {result.practicalImplication && (
-                  <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-5">
-                    <h3 className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold mb-2">💡 Practical Implication</h3>
-                    <p className="text-white/70 text-sm leading-relaxed">{result.practicalImplication}</p>
+                  <div className="bg-red-950/20 border border-red-500/20 rounded-2xl p-5">
+                    <h3 className="text-[10px] text-[#ecb31c] uppercase tracking-widest font-black mb-2">💡 Operational Implication</h3>
+                    <p className="text-gray-300 text-sm leading-relaxed">{result.practicalImplication}</p>
                   </div>
                 )}
 

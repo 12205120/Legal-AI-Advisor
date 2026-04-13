@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import jsPDF from "jspdf";
 import { useGesture } from "../../../components/ui/GestureContext";
 import { getBailApplications, saveBailApplication, deleteBailApplication, BailApplication } from "../../../lib/bail_store";
+import { LegalService } from "../../../lib/legal_service";
 
 interface BailData {
   bailType: string;
@@ -12,14 +13,14 @@ interface BailData {
 }
 
 const BAIL_GROUNDS = [
+  "New Law: BNSS Section 479 (Half-term Served)",
+  "New Law: First-time Offender (1/3rd term)",
   "No prior criminal record",
   "Permanent resident of jurisdiction",
-  "Sole breadwinner of family",
-  "Health/medical grounds",
+  "Health/Medical grounds (Emergency)",
   "Investigation is complete",
   "Willing to surrender passport",
-  "Willing to report to police station daily",
-  "Offence is bailable in nature",
+  "Offence is bailable per BNSS Schedule I",
 ];
 
 export default function Bail() {
@@ -175,34 +176,27 @@ export default function Bail() {
       ? `\n\nGrounds for bail: ${selectedGrounds.join(", ")}`
       : "";
 
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/suggest_bail`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            case_description: `${caseDescription}${groundsText}\nFIR No: ${firNumber || "N/A"}, Police Station: ${policeStation || "N/A"}, Charges: ${charges || "N/A"}`,
-            applicant_name: applicantName,
-            id_number: idNumber,
-          }),
-        });
-        if (!res.ok) throw new Error("Backend API Failed");
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setBailResult(data);
-        if (data.draftTemplate) setDraftContent(data.draftTemplate);
-      } catch (error) {
-        console.warn("Backend error:", error instanceof Error ? error.message : "Unknown error");
-        setTimeout(() => {
-          const fallbackBailType = charges.includes("Murder") || charges.includes("302") ? "Regular Bail (Non-Bailable Offense)" : "Anticipatory Bail / Regular Bail";
-          const draft = `IN THE COURT OF SESSIONS / HIGH COURT \n\nIN THE MATTER OF:\n${applicantName} ... APPLICANT\nVS.\nTHE STATE ... RESPONDENT\n\nFIR NO: ${firNumber || "N/A"}\nPOLICE STATION: ${policeStation || "N/A"}\nCHARGES: ${charges || "N/A"}\nID NUMBER: ${idNumber || "N/A"}\n\nBAIL APPLICATION UNDER SECTION 437/438/439 OF CrPC / SEC 482 of BNSS\n\nMOST RESPECTFULLY SHOWETH:\n1. That the applicant is innocent and has been falsely implicated.\n2. That there is no direct evidence linking the applicant.\n3. Case specific grounds: ${caseDescription}\n4. Additional Grounds: ${selectedGrounds.join(", ") || "None specified"}\n\nPRAYER:\nIn light of the above, it is prayed that the applicant be released on bail.\n\nPLACE: ______\nDATE: ______\n\nADVOCATE FOR APPLICANT`;
-          setBailResult({ 
-            bailType: fallbackBailType, 
-            reason: "[OFFLINE FALLBACK] Since the backend is down, this is an automated offline evaluation based on keywords. The applicant " + applicantName + " meets standard criteria for a bail hearing. Please review the offline drafted template.", 
-            draftTemplate: draft
-          });
-          setDraftContent(draft);
-        }, 1000);
-      } finally {
+    try {
+      const data = await LegalService.suggestBail(
+        applicantName,
+        idNumber,
+        `${caseDescription}${groundsText}\nFIR: ${firNumber}, Charges: ${charges}`
+      );
+      
+      if (!data) throw new Error("Backend AI Failed");
+      setBailResult(data);
+      if (data.draftTemplate) setDraftContent(data.draftTemplate);
+    } catch (error) {
+      console.warn("Bail suggestion failed, using hybrid fallback...");
+      const fallbackBailType = charges.includes("Murder") || charges.includes("302") ? "Regular Bail (Sec 480 BNSS)" : "Anticipatory Bail (Sec 482 BNSS)";
+      const draft = `IN THE COURT OF SESSIONS / HIGH COURT \n\nIN THE MATTER OF:\n${applicantName} ... APPLICANT\nVS.\nTHE STATE ... RESPONDENT\n\nFIR NO: ${firNumber || "N/A"}\nCHARGES: ${charges || "N/A"}\n\nBAIL APPLICATION UNDER SECTION 480/482 OF BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS)\n\nMOST RESPECTFULLY SHOWETH:\n1. That the applicant is innocent and falsely implicated.\n2. That the applicant satisfies the conditions under the new BNSS rules.\n3. Grounds: ${selectedGrounds.join(", ") || "General innocence"}\n\nPRAYER:\nRelease on bail as per BNSS provisions.\n\nADVOCATE FOR APPLICANT`;
+      setBailResult({ 
+        bailType: fallbackBailType, 
+        reason: "Offline BNSS Fallback: Evaluation based on key legal identifiers. Applicant meets standard criteria under BNSS Chapter XXXV.", 
+        draftTemplate: draft
+      });
+      setDraftContent(draft);
+    } finally {
       setLoading(false);
     }
   };
@@ -248,19 +242,19 @@ export default function Bail() {
   const selectedVault = vault.find((a) => a.id === selectedVaultId) ?? null;
 
   return (
-    <div className="bg-black/40 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(16,185,129,0.15)] relative overflow-hidden">
+    <div className="bg-black/40 backdrop-blur-2xl border border-red-500/30 rounded-3xl p-8 shadow-[0_0_40px_rgba(242,28,28,0.15)] relative overflow-hidden">
       
       {/* Signature Canvas Overlay */}
       {isSigning && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <div className="text-emerald-400 font-mono text-sm tracking-widest uppercase mb-4 animate-pulse">
+          <div className="text-red-400 font-mono text-sm tracking-widest uppercase mb-4 animate-pulse">
             Gesture Mode: Pinch to Sign Document
           </div>
           <canvas
             ref={canvasRef}
             width={800}
             height={400}
-            className="border-2 border-emerald-500/50 rounded-2xl bg-white/5 cursor-crosshair shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+            className="border-2 border-red-500/50 rounded-2xl bg-white/5 cursor-crosshair shadow-[0_0_30px_rgba(242,28,28,0.2)]"
             onMouseMove={handleCanvasMouseMove}
           />
           <div className="flex gap-4 mt-6">
@@ -278,7 +272,7 @@ export default function Bail() {
             </button>
             <button
               onClick={handleSaveSignature}
-              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+              className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold transition-all shadow-[0_0_20px_rgba(242,28,28,0.4)]"
             >
               Done & Place
             </button>
@@ -289,11 +283,11 @@ export default function Bail() {
       {/* Header */}
       <div className="mb-6 border-b border-white/10 pb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 tracking-widest uppercase flex items-center gap-3">
-            <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 tracking-widest uppercase flex items-center gap-3">
+            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            Bail Intelligence System
+            BNSS Bail Intelligence
           </h2>
           <p className="text-white/50 text-sm mt-1">Draft, generate & present bail applications in Indian courts.</p>
         </div>
@@ -305,7 +299,7 @@ export default function Bail() {
               onClick={() => setTab(t as "new" | "vault")}
               className={`px-5 py-2 rounded-xl text-sm font-semibold tracking-widest uppercase transition-all ${
                 tab === t
-                  ? "bg-emerald-500/20 border border-emerald-400 text-emerald-300"
+              ? "bg-red-500/20 border border-red-400 text-red-300"
                   : "bg-white/5 border border-white/10 text-white/50 hover:bg-white/10"
               }`}
             >
@@ -327,12 +321,12 @@ export default function Bail() {
               { label: "Police Station", val: policeStation, set: setPoliceStation, ph: "e.g., Lajpat Nagar PS, Delhi" },
             ].map((field) => (
               <div key={field.label} className="relative group">
-                <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">{field.label}</label>
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
+                <label className="text-xs text-red-400/70 tracking-widest uppercase font-semibold block mb-1">{field.label}</label>
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
                 <input
                   type="text"
                   placeholder={field.ph}
-                  className="relative w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm"
+                  className="relative w-full p-3 bg-gray-900/80 border border-red-500/30 rounded-xl text-white focus:outline-none focus:border-red-400 transition-all font-mono text-sm"
                   value={field.val}
                   onChange={(e) => field.set(e.target.value)}
                 />
@@ -341,23 +335,23 @@ export default function Bail() {
           </div>
 
           <div className="relative group">
-            <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">Charges (IPC/BNS Sections)</label>
+            <label className="text-xs text-red-400/70 tracking-widest uppercase font-semibold block mb-1">Charges (IPC/BNS Sections)</label>
             <input
               type="text"
               placeholder="e.g., BNS 101 (Murder), IPC 420 (Cheating)"
-              className="w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm"
+              className="w-full p-3 bg-gray-900/80 border border-red-500/30 rounded-xl text-white focus:outline-none focus:border-red-400 transition-all font-mono text-sm"
               value={charges}
               onChange={(e) => setCharges(e.target.value)}
             />
           </div>
 
           <div className="relative group">
-            <label className="text-xs text-emerald-400/70 tracking-widest uppercase font-semibold block mb-1">Full Case Description</label>
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
+            <label className="text-xs text-red-400/70 tracking-widest uppercase font-semibold block mb-1">Full Case Description</label>
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl blur opacity-10 group-hover:opacity-30 transition duration-500" />
             <textarea
               rows={4}
               placeholder="Describe the case, circumstances of arrest, and key facts..."
-              className="relative w-full p-3 bg-gray-900/80 border border-emerald-500/30 rounded-xl text-white focus:outline-none focus:border-emerald-400 transition-all font-mono text-sm resize-none"
+              className="relative w-full p-3 bg-gray-900/80 border border-red-500/30 rounded-xl text-white focus:outline-none focus:border-red-400 transition-all font-mono text-sm resize-none"
               value={caseDescription}
               onChange={(e) => setCaseDescription(e.target.value)}
             />
@@ -373,7 +367,7 @@ export default function Bail() {
                   onClick={() => toggleGround(g)}
                   className={`px-3 py-1.5 rounded-lg text-xs transition-all border ${
                     selectedGrounds.includes(g)
-                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                      ? "bg-red-500/20 border-red-400 text-red-300"
                       : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
                   }`}
                 >
@@ -390,7 +384,7 @@ export default function Bail() {
               disabled={loading}
               className="relative group overflow-hidden rounded-xl p-[1px] w-56"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 opacity-70 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="absolute inset-0 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 opacity-70 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative h-full flex items-center justify-center bg-black px-6 py-3 rounded-xl transition-all duration-300 group-hover:bg-opacity-0">
                 <span className="text-white font-semibold flex items-center gap-2 tracking-wider">
                   {loading ? (
@@ -413,16 +407,16 @@ export default function Bail() {
               ) : (
                 <>
                   {/* Recommendation Card */}
-                  <div className="p-6 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-start">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-600" />
+                  <div className="p-6 bg-red-950/20 border border-red-500/30 rounded-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-start">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-red-500 to-red-800" />
                     <div className="md:w-1/3 flex-shrink-0">
-                      <div className="inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase rounded mb-3">
+                      <div className="inline-flex px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold tracking-widest uppercase rounded mb-3">
                         Recommended Action
                       </div>
                       <h3 className="text-2xl font-bold tracking-tight text-white">{bailResult.bailType}</h3>
                     </div>
                     <div className="md:w-2/3 pl-0 md:pl-6 md:border-l border-white/10">
-                      <h4 className="text-sm text-teal-300 uppercase tracking-widest font-semibold mb-2">Legal Rationale</h4>
+                      <h4 className="text-sm text-yellow-400 uppercase tracking-widest font-semibold mb-2">Legal Rationale</h4>
                       <p className="text-white/80 leading-relaxed text-sm">{bailResult.reason}</p>
                     </div>
                   </div>
@@ -440,7 +434,7 @@ export default function Bail() {
                         {!signatureDataUrl && (
                           <button
                             onClick={() => setIsSigning(true)}
-                            className="flex items-center gap-2 px-3 py-2 bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-300 text-sm font-semibold rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/50 hover:bg-red-500/30 text-red-300 text-sm font-semibold rounded-lg transition-colors"
                           >
                             ✒️ Sign
                           </button>
@@ -470,7 +464,7 @@ export default function Bail() {
                         )}
                         <button
                           onClick={() => downloadPDF(draftContent)}
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-red-500/20"
                         >
                           ⬇ Export PDF
                         </button>
@@ -530,7 +524,7 @@ export default function Bail() {
                   onClick={() => setSelectedVaultId(app.id)}
                   className={`p-4 rounded-xl cursor-pointer border transition-all ${
                     selectedVaultId === app.id
-                      ? "bg-emerald-500/15 border-emerald-400/50"
+                      ? "bg-red-500/15 border-red-400/50"
                       : "bg-white/5 border-white/10 hover:border-white/20"
                   }`}
                 >
@@ -554,13 +548,13 @@ export default function Bail() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <h3 className="text-xl font-bold text-white">{selectedVault.applicantName}</h3>
-                    <p className="text-emerald-400 text-sm">{selectedVault.bailType}</p>
+                    <p className="text-red-400 text-sm">{selectedVault.bailType}</p>
                     {selectedVault.charges && <p className="text-white/40 text-xs mt-1">Charges: {selectedVault.charges}</p>}
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => downloadPDF(selectedVault.draftTemplate)}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold rounded-lg transition-colors"
                     >
                       ⬇ PDF
                     </button>
@@ -577,8 +571,8 @@ export default function Bail() {
                   </div>
                 </div>
 
-                <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl">
-                  <div className="text-xs text-teal-300 uppercase tracking-widest font-semibold mb-1">Legal Rationale</div>
+                <div className="p-4 bg-red-950/20 border border-red-500/20 rounded-xl">
+                  <div className="text-xs text-yellow-400 uppercase tracking-widest font-semibold mb-1">Legal Rationale</div>
                   <p className="text-white/70 text-sm leading-relaxed">{selectedVault.reason}</p>
                 </div>
 

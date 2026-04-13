@@ -583,31 +583,79 @@ async def suggest_bail(data: dict):
     applicant_name = data.get("applicant_name", "[Applicant Name]")
     id_number = data.get("id_number", "[ID Number]")
     case_description = data.get("case_description", "")
-    prompt = f"""You are an expert Indian Defense Lawyer. Analyze this case and suggest the appropriate bail:
-Case: "{case_description}"
-Applicant Name: "{applicant_name}"
-Applicant ID: "{id_number}"
+    
+    # FORCED BNSS CONTEXT
+    prompt = f"""You are a Supreme Court of India Defense Advocate specializing in the new Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023.
+Case Facts: "{case_description}"
+Applicant: {applicant_name} (ID: {id_number})
 
-You must respond with ONLY a valid JSON object. Do not include any markdown formatting or code blocks.
-The JSON object must have the following exact keys:
+TASK:
+1. Determine the appropriate bail type (e.g., Anticipatory Bail under Sec 482 BNSS, Regular Bail under Sec 480 BNSS, or Interim Bail).
+2. Evaluate if Section 479 BNSS (Detention of undertrail prisoners) applies (e.g., if the person has already served half the maximum punishment).
+3. Provide a RATIONALE based solely on BNSS procedures.
+4. Draft a formal BAIL APPLICATION in professional legal English.
+
+MANDATORY FORMATTING:
+- Cite BNSS sections throughout (replacing CrPC).
+- Address to "IN THE COURT OF THE SESSIONS JUDGE / HIGH COURT".
+- Use formal numbered paragraphs.
+
+Respond with ONLY JSON:
 {{
-  "bailType": "e.g., Anticipatory Bail, Regular Bail, Default Bail",
-  "reason": "Explain legally why this bail type is most appropriate for this case",
-  "draftTemplate": "Provide a complete, formal bail application ready for court submission (300-400 words) written in formal legal English. Include standard Indian legal headers like 'IN THE COURT OF THE SESSIONS JUDGE', the title 'BAIL APPLICATION UNDER SECTION [APPROPRIATE SECTION]', and formal numbered paragraphs. Explicitly replace ALL applicant name placeholders with '{applicant_name}' and ID placeholders with '{id_number}'. Rewrite the raw case description into a highly formal, professional legal tone suitable for court."
+  "bailType": "BNSS Section based bail type",
+  "reason": "Detailed legal evaluation using BNSS 2023 provisions.",
+  "draftTemplate": "Full formal legal draft (300-500 words)."
 }}"""
 
     try:
         text = rotator.generate(prompt).strip()
-        
         if text.startswith("```json"): text = text[7:]
         if text.startswith("```"): text = text[3:]
         if text.endswith("```"): text = text[:-3]
-        text = text.strip()
-            
-        return json.loads(text)
+        return json.loads(text.strip())
     except Exception as e:
         logger.error(str(e))
         return {"error": "AI bail suggestion temporarily unavailable."}
+
+@app.post("/analyze_arguments")
+async def analyze_arguments(data: dict):
+    prosecution = data.get("prosecution", "")
+    defense = data.get("defense", "")
+    scenario = data.get("scenario", "")
+
+    prompt = f"""You are a Lead Judicial Analyst (Judge's Bench).
+Case Scenario: {scenario}
+
+PROSECUTION ARGUMENT:
+{prosecution}
+
+DEFENSE ARGUMENT:
+{defense}
+
+TASK:
+1. Conduct a deep comparative analysis of both arguments against the Bharatiya Nyaya Sanhita (BNS) and Bharatiya Nagarik Suraksha Sanhita (BNSS).
+2. Identify specific 'Contradictions' or 'Legal Loopholed' in either side's argument.
+3. Reference the Knowledge Vault (RAG) to find matching precedents or sections.
+4. Give a 'Judicial Edge' - which side currently has a stronger legal standing?
+
+Respond with ONLY JSON:
+{{
+  "prosecutionStrength": "1-10",
+  "defenseStrength": "1-10",
+  "contradictions": ["list of flaws"],
+  "legalPrecedents": ["Relevant BNS/BNSS Sections"],
+  "benchOpinion": "Deep judicial analysis of the debate (150 words)."
+}}"""
+
+    try:
+        text = rotator.generate(prompt).strip()
+        if text.startswith("```json"): text = text[7:]
+        if text.startswith("```"): text = text[3:]
+        if text.endswith("```"): text = text[:-3]
+        return json.loads(text.strip())
+    except Exception as e:
+        logger.error(str(e))
+        return {"error": "Judicial Analysis system error."}
 
 # ==============================
 # 9. PRODUCTION OTP SYSTEM
