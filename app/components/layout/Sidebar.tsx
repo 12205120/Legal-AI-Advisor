@@ -49,8 +49,8 @@ export default function Sidebar({
   }, [isPinching, isActive, cursorX, cursorY]);
 
   return (
-    <div className="w-72 bg-slate-900/60 backdrop-blur-3xl border-r border-white/5 p-8 flex flex-col">
-      <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00e5ff] to-[#0ea5e9] mb-12 tracking-tighter">
+    <div className="w-72 bg-black/80 backdrop-blur-3xl border-r border-red-600/20 p-8 flex flex-col">
+      <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f21c1c] to-[#ecb31c] mb-12 tracking-tighter">
         NYAYA_AI
       </h1>
 
@@ -67,7 +67,7 @@ export default function Sidebar({
               onClick={() => setActive(item.id)}
               className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-500 overflow-hidden ${
                 isActiveTab
-                  ? "bg-[#00e5ff]/10 border border-[#00e5ff]/30 shadow-[0_0_20px_rgba(0,229,255,0.15)]"
+                  ? "bg-[#f21c1c]/10 border border-[#f21c1c]/30 shadow-[0_0_20px_rgba(242,28,28,0.15)]"
                   : isHovered
                   ? "bg-white/5 border border-white/10 translate-x-1"
                   : "bg-transparent border border-transparent"
@@ -78,18 +78,18 @@ export default function Sidebar({
                   {item.icon}
                 </span>
                 <span className={`text-sm tracking-wide transition-colors duration-300 ${
-                  isActiveTab ? "text-[#00e5ff] font-bold" : isHovered ? "text-white" : "text-slate-400"
+                  isActiveTab ? "text-[#f21c1c] font-bold" : isHovered ? "text-white" : "text-slate-400"
                 }`}>
                   {item.label.split(" ").slice(1).join(" ").toUpperCase()}
                 </span>
                 
                 {isHovered && !isActiveTab && (
-                  <div className="ml-auto w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
+                  <div className="ml-auto w-2 h-2 rounded-full bg-[#f21c1c] animate-ping" />
                 )}
               </div>
               
               {isActiveTab && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5ff] shadow-[0_0_10px_#00e5ff]" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#f21c1c] shadow-[0_0_15px_#f21c1c]" />
               )}
             </div>
           );
@@ -99,17 +99,17 @@ export default function Sidebar({
       {/* Gesture mode status display */}
       <div className={`mt-auto p-4 rounded-xl border transition-all duration-500 ${
         isActive 
-          ? "border-[#00e5ff]/20 bg-[#00e5ff]/5" 
+          ? "border-[#f21c1c]/20 bg-[#f21c1c]/5" 
           : "border-white/5 bg-white/2"
       }`}>
         <div className={`text-[10px] tracking-[0.2em] font-black mb-2 ${
-          isActive ? "text-[#00e5ff]" : "text-slate-500"
+          isActive ? "text-[#f21c1c]" : "text-slate-500"
         }`}>
           {isActive ? "SYSTEM_ACTIVE" : "GESTURE_IDLE"}
         </div>
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${
-            isActive ? "bg-[#00e5ff] animate-pulse" : "bg-slate-700"
+            isActive ? "bg-[#ecb31c] animate-pulse" : "bg-slate-700"
           }`} />
           <div className="text-[10px] text-slate-400 font-mono uppercase">
             {isActive ? "Link Established" : "Awaiting Input"}

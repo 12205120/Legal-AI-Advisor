@@ -1,19 +1,21 @@
 @import "tailwindcss";
 
-/* 1. PROFESSIONAL COLOR PALETTE */
+/* 1. RCB PROFESSIONAL COLOR PALETTE */
 @theme {
-  --color-background: #0b0e14;
-  --color-foreground: #f8fafc;
-  --color-master-sidebar: #090b0f;
-  --color-accent-blue: #00e5ff; /* Piercing Neon Cyan */
-  --color-accent-purple: #0ea5e9; /* Deep Sky Blue for tech contrast */
-  --color-accent-green: #38bdf8; /* Bright icy blue */
+  --color-background: #0a0a0a;
+  --color-foreground: #ffffff;
+  --color-master-sidebar: #0f0f0f;
+  --color-accent-red: #f21c1c; /* RCB Crimson Red */
+  --color-accent-gold: #ecb31c; /* RCB Royal Gold */
+  --color-accent-black: #1a1a1a; /* Deep Coal Black */
 }
 
 /* 2. CORE LAYOUT STABILIZERS */
 :root {
-  --background: #0b0e14;
-  --foreground: #f8fafc;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --primary-red: #f21c1c;
+  --royal-gold: #ecb31c;
 }
 
 body {
@@ -22,9 +24,9 @@ body {
   font-family: 'Outfit', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   background-image: 
-    radial-gradient(ellipse at top left, rgba(0, 229, 255, 0.12) 0%, transparent 45%),
-    radial-gradient(ellipse at bottom right, rgba(14, 165, 233, 0.1) 0%, transparent 45%),
-    radial-gradient(ellipse at center, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
+    radial-gradient(ellipse at top left, rgba(242, 28, 28, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(236, 179, 28, 0.12) 0%, transparent 45%),
+    radial-gradient(ellipse at center, rgba(10, 10, 10, 0.8) 0%, transparent 50%);
   background-attachment: fixed;
 }
 

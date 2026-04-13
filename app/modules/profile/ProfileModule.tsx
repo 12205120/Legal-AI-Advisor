@@ -146,16 +146,16 @@ export default function ProfileModule() {
   // Dashboard View post-login
   if (isAuthenticated) {
     const stats = [
-      { label: "Total Usage", value: "24.5", unit: "Hrs", icon: "🕒", color: "from-blue-500/20 to-blue-600/20" },
-      { label: "Learnings", value: "12", unit: "Modules", icon: "📚", color: "from-purple-500/20 to-purple-600/20" },
-      { label: "Cases Solved", value: "156", unit: "Cases", icon: "⚖️", color: "from-emerald-500/20 to-emerald-600/20" },
-      { label: "AI Interactions", value: "842", unit: "Queries", icon: "🤖", color: "from-orange-500/20 to-orange-600/20" },
+      { label: "Total Usage", value: "24.5", unit: "Hrs", icon: "🕒", color: "from-red-600/20 to-black/40" },
+      { label: "Learnings", value: "12", unit: "Modules", icon: "📚", color: "from-yellow-600/20 to-black/40" },
+      { label: "Cases Solved", value: "156", unit: "Cases", icon: "⚖️", color: "from-red-700/20 to-black/40" },
+      { label: "AI Interactions", value: "842", unit: "Queries", icon: "🤖", color: "from-yellow-500/20 to-black/40" },
     ];
 
     const modules = [
-      { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-blue-500" },
-      { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-purple-500" },
-      { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-emerald-500" },
+      { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-red-600" },
+      { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-yellow-600" },
+      { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-red-500" },
     ];
 
     const history = [
@@ -168,20 +168,20 @@ export default function ProfileModule() {
     return (
       <div className="min-h-screen w-full bg-black text-white p-4 md:p-10 relative overflow-hidden">
         {/* Background Accents */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -z-10" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] -z-10" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[120px] -z-10" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-yellow-600/10 rounded-full blur-[120px] -z-10" />
 
         <div className="max-w-7xl mx-auto space-y-10">
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-[#1a1a1b]/50 backdrop-blur-xl border border-white/10 p-8 rounded-3xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-[#121212]/80 backdrop-blur-xl border border-red-600/20 p-8 rounded-3xl">
             <div className="flex items-center gap-6">
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-4xl font-bold shadow-xl shadow-blue-500/20">
+              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-black flex items-center justify-center text-4xl font-bold shadow-xl shadow-red-500/20 border border-yellow-500/30">
                 {formData.firstName?.[0] || formData.email[0].toUpperCase()}
               </div>
               <div className="text-left">
                 <h1 className="text-4xl font-google font-bold text-white mb-2">Welcome back, {formData.firstName}!</h1>
                 <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-semibold uppercase tracking-wider">
+                  <span className="px-3 py-1 bg-red-600/20 border border-red-600/30 rounded-full text-red-500 text-xs font-semibold uppercase tracking-wider">
                     {activeRole}
                   </span>
                   <span className="text-gray-400 text-sm">{formData.email}</span>
@@ -194,7 +194,7 @@ export default function ProfileModule() {
                 setIsOtpStep(false);
                 setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
               }} 
-              className="px-8 py-3 bg-[#242426] hover:bg-[#2d2d30] border border-[#3c4043] rounded-xl text-white font-google transition-all flex items-center gap-2 group"
+              className="px-8 py-3 bg-[#111] hover:bg-red-600 border border-red-600/30 rounded-xl text-white font-google transition-all flex items-center gap-2 group"
             >
               <span className="group-hover:translate-x-1 transition-transform">Sign Out</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
@@ -233,7 +233,7 @@ export default function ProfileModule() {
                   <div key={i} className="space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-300 font-medium">{mod.name || (mod as any).label}</span>
-                      <span className="text-blue-400 font-bold">{mod.progress}%</span>
+                      <span className="text-red-500 font-bold">{mod.progress}%</span>
                     </div>
                     <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                       <motion.div 
@@ -242,7 +242,7 @@ export default function ProfileModule() {
                         transition={{ duration: 1, delay: 0.5 + (i * 0.2) }}
                         className={`h-full ${mod.color} rounded-full relative`}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 animate-pulse" />
                       </motion.div>
                     </div>
                   </div>
@@ -261,17 +261,17 @@ export default function ProfileModule() {
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.8 + (i * 0.1) }}
-                      className="p-5 hover:bg-white/5 transition-colors cursor-default group"
+                      className="p-5 hover:bg-red-600/10 transition-colors cursor-default group"
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{item.type}</span>
+                        <span className="text-xs font-bold text-yellow-500 uppercase tracking-widest">{item.type}</span>
                         <span className="text-[10px] text-gray-500 uppercase">{item.time}</span>
                       </div>
                       <p className="text-sm text-gray-200 font-medium group-hover:text-white transition-colors">{item.action}</p>
                     </motion.div>
                   ))}
                 </div>
-                <button className="w-full py-4 text-sm text-gray-500 hover:text-white hover:bg-white/5 transition-all font-medium border-t border-white/5">
+                <button className="w-full py-4 text-sm text-gray-500 hover:text-red-500 hover:bg-black transition-all font-medium border-t border-white/5">
                   View All History
                 </button>
               </div>

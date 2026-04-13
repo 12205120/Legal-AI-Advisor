@@ -67,20 +67,20 @@ export default function TrainerModule() {
               onClick={() => setActive(tab.id)}
               className={`px-5 py-2.5 rounded-xl border transition-all duration-300 relative ${
                 isActiveTab
-                  ? "bg-cyan-500/20 border-cyan-400 shadow-lg shadow-cyan-500/20 text-cyan-300"
+                  ? "bg-red-600/20 border-red-500 shadow-lg shadow-red-500/20 text-red-500 font-bold"
                   : isHovered
-                  ? "bg-cyan-500/10 border-cyan-500/50 text-cyan-200 scale-105"
+                  ? "bg-red-600/10 border-red-500/50 text-red-400 scale-105"
                   : "bg-white/5 border-white/10 hover:bg-white/10 text-white/70"
               }`}
               style={
                 isHovered
-                  ? { boxShadow: "0 0 18px rgba(0,255,255,0.25)" }
+                  ? { boxShadow: "0 0 18px rgba(242,28,28,0.25)" }
                   : undefined
               }
             >
               {tab.label}
               {isHovered && !isActiveTab && (
-                <span className="absolute -top-2 -right-1 text-[8px] bg-cyan-500 text-black font-bold px-1.5 py-0.5 rounded-full tracking-wider">
+                <span className="absolute -top-2 -right-1 text-[8px] bg-[#ecb31c] text-black font-bold px-1.5 py-0.5 rounded-full tracking-wider">
                   PINCH
                 </span>
               )}
