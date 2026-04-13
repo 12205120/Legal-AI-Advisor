@@ -27,7 +27,6 @@ export default function ProfileModule() {
     firstName: "",
     lastName: "",
     email: "",
-    phoneNumber: "",
     password: "",
     otp: "",
     college: "",
@@ -60,8 +59,7 @@ export default function ProfileModule() {
           setFormData(prev => ({
             ...prev,
             firstName: loginData.user.first_name || "",
-            lastName: loginData.user.last_name || "",
-            phoneNumber: loginData.user.phone_number || ""
+            lastName: loginData.user.last_name || ""
           }));
         } else {
           alert("Invalid Login credentials.");
@@ -77,7 +75,6 @@ export default function ProfileModule() {
             password: formData.password, 
             first_name: formData.firstName,
             last_name: formData.lastName,
-            phone_number: formData.phoneNumber,
             role: activeRole,
             college: formData.college,
             registration_no: formData.registrationNo,
@@ -92,8 +89,9 @@ export default function ProfileModule() {
         }
       }
 
-      // Both flows send an OTP for security
-      const otpRes = await fetch(`${backendUrl}/send_otp`, {
+      // Both flows send an OTP via the new Node.js server
+      const authUrl = "http://localhost:5000";
+      const otpRes = await fetch(`${authUrl}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email })
@@ -101,9 +99,9 @@ export default function ProfileModule() {
       if (otpRes.ok) {
         const otpData = await otpRes.json();
         if (otpData.status === "success") {
-          if (otpData.debug_otp) {
-            setFormData(prev => ({ ...prev, otp: otpData.debug_otp }));
-            console.log("Nyaya AI Debug: OTP captured automatically:", otpData.debug_otp);
+          if (otpData.debugOTP) {
+            setFormData(prev => ({ ...prev, otp: otpData.debugOTP }));
+            console.log("Nyaya AI Debug: OTP captured automatically:", otpData.debugOTP);
           }
           setIsOtpStep(true);
         } else {
@@ -124,14 +122,14 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
-      const res = await fetch(`${backendUrl}/verify_otp`, {
+      const authUrl = "http://localhost:5000";
+      const res = await fetch(`${authUrl}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email, otp: formData.otp })
       });
       const data = await res.json();
-      if (data.status === "verified") {
+      if (data.status === "success" || data.status === "verified") {
         setIsOtpStep(false);
         setIsAuthenticated(true);
       } else {
@@ -165,15 +163,15 @@ export default function ProfileModule() {
               <div className="text-lg font-medium">{activeRole}</div>
             </div>
             <div className="bg-[#242426] p-4 rounded-xl border border-[#3c4043]">
-              <div className="text-xs text-blue-400 uppercase tracking-wider mb-1">Phone Number</div>
-              <div className="text-lg font-medium">{formData.phoneNumber || "Not registered"}</div>
+              <div className="text-xs text-blue-400 uppercase tracking-wider mb-1">Email</div>
+              <div className="text-lg font-medium">{formData.email}</div>
             </div>
           </div>
           
           <button 
             onClick={() => { 
               setIsAuthenticated(false); 
-              setFormData({firstName: "", lastName: "", email: "", phoneNumber: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
+              setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
             }} 
             className="mt-10 px-10 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-google transition-all"
           >
@@ -196,7 +194,7 @@ export default function ProfileModule() {
         >
           <h1 className="text-2xl text-white mb-2 font-google">2-Step Verification</h1>
           <p className="text-gray-400 text-sm mb-8">
-            Nyaya AI sent a verification code to your email and mobile.
+            Nyaya AI sent a verification code to your email address.
            </p>
           <form onSubmit={handleOtpVerify} className="space-y-6">
             <input 
@@ -341,12 +339,6 @@ export default function ProfileModule() {
                 <input 
                   type="email" name="email" value={formData.email} onChange={handleInputChange} 
                   placeholder="Email" 
-                  className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                  required 
-                />
-                <input 
-                  type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} 
-                  placeholder="Phone Number" 
                   className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
                   required 
                 />
