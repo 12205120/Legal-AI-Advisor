@@ -88,10 +88,27 @@ export default function Assessment() {
             value={law}
           >
             <option value="" disabled>Select Legal Domain</option>
-            <option value="IPC">Indian Penal Code (IPC)</option>
-            <option value="Constitution">Constitutional Law</option>
-            <option value="Contract Act">Contract Act</option>
-            <option value="Family Law">Family Law</option>
+            <option value="IPC-BNS">Indian Penal Code (IPC) / BNS</option>
+            <option value="CrPC-BNSS">Code of Criminal Procedure (CrPC) / BNSS</option>
+            <option value="IEA-BSA">Indian Evidence Act (IEA) / BSA</option>
+            <option value="Constitution">Constitutional Law of India</option>
+            <option value="Contract Act">Indian Contract Act, 1872</option>
+            <option value="Family Law">Hindu/Muslim Personal Laws</option>
+            <option value="Transfer of Property">Transfer of Property Act, 1882</option>
+            <option value="Specific Relief">Specific Relief Act, 1963</option>
+            <option value="Negotiable Instruments">Negotiable Instruments Act, 1881</option>
+            <option value="Companies Act">Companies Act, 2013</option>
+            <option value="Consumer Protection">Consumer Protection Act, 2019</option>
+            <option value="Motor Vehicles">Motor Vehicles Act, 1988</option>
+            <option value="Information Technology">IT Act, 2000</option>
+            <option value="Arbitration">Arbitration and Conciliation Act, 1996</option>
+            <option value="Limitation Act">Limitation Act, 1963</option>
+            <option value="Insolvency">Insolvency and Bankruptcy Code (IBC)</option>
+            <option value="Environmental Law">Environment Protection Act, 1986</option>
+            <option value="Labour Law">Industrial Disputes Act, 1947</option>
+            <option value="Intellectual Property">Trademark/Copyright/Patent Acts</option>
+            <option value="PoCSO">PoCSO Act, 2012</option>
+            <option value="NDPS">NDPS Act, 1985</option>
           </select>
         </div>
 

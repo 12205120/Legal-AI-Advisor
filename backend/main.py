@@ -370,27 +370,29 @@ async def generate_scenario(data: dict):
     current_district = random.choice(districts)
     current_loc = random.choice(locations)
     
-    prompt = f"""You are an expert Indian Legal Case Author. 
-Generate a HIGHLY UNIQUE and detailed Indian court case scenario.
+    prompt = f"""You are an expert Indian Legal Case Author and Supreme Court Historian. 
+Generate a HIGHLY UNIQUE and detailed Indian court case scenario that is grounded in REAL JURISPRUDENCE.
 MANDATORY VARIATION SEED: #{random_id}
 LOCATION: {current_district}, {current_loc}
 
 TASK:
 1. Create a realistic, complex legal scenario for a {law_type} case.
-2. Ensure it is NOT a generic template. Add specific details like exact names, specific items involved, and a unique sequence of events.
-3. Choose a specific Indian city and district randomly from Maharashtra.
+2. ANCHOR TO REALITY: While the specific characters are unique, you MUST mention or draw inspiration from at least ONE LANDMARK INDIAN CASE (e.g., Kesavananda Bharati, Aruna Shanbaug, Maneka Gandhi, or Navtej Singh Johar) if the legal theme matches. 
+3. Cite actual Indian Supreme Court or High Court precedents that would be relevant to this scenario.
+4. Ensure it is NOT a generic template. Add specific details like exact names, specific items involved, and a unique sequence of events.
+5. Provide a realistic CNR number following the format: CNR No. MH{current_district[:2].upper()}{random.randint(10,99)}-{random.randint(100000, 999999)}-2024.
 
 Respond with ONLY a valid JSON object. No markdown, no code blocks.
 {{
-  "caseTitle": "State of Maharashtra v. [Unique Name]",
-  "caseNumber": "CNR No. MH{random.randint(10,99)}01-{random.randint(100000, 999999)}-2024",
+  "caseTitle": "State of Maharashtra v. [Unique Name] - In light of [Landmark Case Name]",
+  "caseNumber": "CNR No. MH{current_district[:2].upper()}{random.randint(10,99)}-{random.randint(100000, 999999)}-2024",
   "court": "District & Sessions Court, {current_district}",
   "accusedName": "Full Indian name",
   "victimName": "Full Indian name",
   "sections": "Relevant BNS sections and equivalent IPC sections",
-  "summary": "Detailed narrative of the specific incident (6-8 sentences)",
-  "prosecution": "3 sharp, specific legal arguments",
-  "defense": "3 realistic legal defenses",
+  "summary": "Detailed narrative of the incident (6-8 sentences). Reference a relevant real-world precedent that governs this area of law.",
+  "prosecution": "3 sharp, specific legal arguments using precedents",
+  "defense": "3 realistic legal defenses based on Indian legal exceptions",
   "keyEvidence": "Detailed list including forensics or specific documents",
   "charges": "Formal charges as per BNSS/CrPC"
 }}"""

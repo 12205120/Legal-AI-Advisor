@@ -102,9 +102,12 @@ export default function Virtual() {
   const indianLaws = [
     "CONSTITUTIONAL LAW",
     "CRIMINAL LAW (IPC/BNS)",
-    "CORPORATE LAW",
-    "FAMILY LAW",
-    "CYBER LAW",
+    "CODE OF CRIMINAL PROCEDURE (CrPC/BNSS)",
+    "INDIAN EVIDENCE ACT (IEA/BSA)",
+    "CORPORATE & COMPANIES ACT",
+    "FAMILY & PERSONAL LAWS",
+    "CYBER & IT ACT",
+    "CONTRACT & PROPERTY LAW",
   ];
 
   // Auto-scroll transcript
@@ -924,27 +927,46 @@ export default function Virtual() {
                 ) : (
                   <div className="w-full h-full relative overflow-hidden bg-slate-900 flex items-center justify-center border-l border-white/5">
                     <style>{`
-                      @keyframes vtuber-talk {
-                        0%, 100% { opacity: 0; }
-                        50% { opacity: 1; }
+                      @keyframes breathing {
+                        0%, 100% { transform: scale(1); opacity: 0.95; }
+                        50% { transform: scale(1.02); opacity: 1; }
                       }
-                      .anime-mouth-open {
-                        animation: vtuber-talk 0.25s infinite steps(2, jump-none);
+                      @keyframes blinking {
+                        0%, 45%, 55%, 100% { transform: scaleY(1); }
+                        50% { transform: scaleY(0.1); }
                       }
+                      @keyframes swaying {
+                        0%, 100% { transform: rotate(0deg) translateX(0px); }
+                        33% { transform: rotate(0.5deg) translateX(2px); }
+                        66% { transform: rotate(-0.5deg) translateX(-2px); }
+                      }
+                      @keyframes mouth-talk {
+                        0%, 100% { height: 4px; border-radius: 50%; }
+                        50% { height: 16px; border-radius: 40%; }
+                      }
+                      .sara-body { animation: breathing 4s ease-in-out infinite, swaying 8s ease-in-out infinite; }
+                      .sara-eyes { animation: blinking 4s infinite; }
+                      .sara-mouth { animation: mouth-talk 0.15s infinite; }
                     `}</style>
                     
-                    {/* Idle / Closed Face base */}
+                    {/* Main Sara Body (Using sara-human.jpg for realism) */}
                     <div 
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: 'url(/sara-anime-closed.png)' }}
-                    />
+                      className="absolute inset-0 bg-cover bg-center sara-body outline-none border-none"
+                      style={{ backgroundImage: 'url(/sara-human.jpg)' }}
+                    >
+                      {/* Realistic Eye Overlay (Blinking) */}
+                      <div className="absolute top-[34%] left-[28%] w-[44%] h-[6%] flex justify-between px-8 sara-eyes">
+                         <div className="w-5 h-5 bg-black rounded-full opacity-0" />
+                         <div className="w-5 h-5 bg-black rounded-full opacity-0" />
+                      </div>
+                    </div>
+
+                    {/* Dark overlay for contrast */}
+                    <div className="absolute inset-0 bg-black/20 z-10 pointer-events-none" />
                     
-                    {/* Talking / Open Face overlay */}
+                    {/* Physics-based Mouth for Lip Sync */}
                     {isAvatarTalking && (
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center anime-mouth-open"
-                        style={{ backgroundImage: 'url(/sara-anime-open.png)' }}
-                      />
+                      <div className="absolute top-[52%] left-[50.5%] -translate-x-1/2 w-6 bg-black/90 z-20 sara-mouth border border-red-500/30 shadow-[0_0_10px_rgba(242,28,28,0.5)]" />
                     )}
                   </div>
                 )}
