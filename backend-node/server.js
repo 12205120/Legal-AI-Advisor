@@ -69,12 +69,18 @@ app.post('/send-otp', async (req, res) => {
     try {
         if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
             await transporter.sendMail(mailOptions);
+            res.json({ status: 'success', message: 'OTP sent to email.' });
         } else {
-            console.log('--- NYAYA AI DEBUG ---');
-            console.log(`OTP for ${email}: ${otp}`);
-            console.log('----------------------');
+            console.warn('--- WARNING: EMAIL CREDENTIALS MISSING ---');
+            console.warn('Set GMAIL_USER and GMAIL_PASS in .env to send real emails.');
+            console.warn(`DEBUG OTP for ${email}: ${otp}`);
+            console.warn('-------------------------------------------');
+            res.json({ 
+                status: 'success', 
+                message: 'Server in DEBUG MODE (Credentials missing). Check terminal for OTP.',
+                debugOTP: otp 
+            });
         }
-        res.json({ status: 'success', message: 'OTP sent to email.', debugOTP: process.env.NODE_ENV !== 'production' ? otp : null });
     } catch (error) {
         console.error('Email error:', error);
         res.status(500).json({ status: 'failed', error: 'Failed to send email' });
