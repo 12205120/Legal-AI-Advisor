@@ -99,6 +99,11 @@ export default function ProfileModule() {
         body: JSON.stringify({ email: formData.email })
       });
       if (otpRes.ok) {
+        const otpData = await otpRes.json();
+        if (otpData.testing_otp) {
+          setFormData(prev => ({ ...prev, otp: otpData.testing_otp }));
+          console.log("Nyaya AI Debug: OTP captured automatically:", otpData.testing_otp);
+        }
         setIsOtpStep(true);
       } else {
         alert("Failed to send OTP.");

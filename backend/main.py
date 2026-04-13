@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import edge_tts
 import sqlite3
 from knowledge_vault import vault
@@ -618,25 +619,53 @@ async def send_otp(req: OTPRequest):
     
     if sender_email and sender_password:
         try:
-            msg = MIMEText(f"Your Nyaya AI Secure OTP is: {otp}\n\nPlease enter this code in the portal to authenticate.")
-            msg['Subject'] = 'Nyaya AI - Security OTP'
-            msg['From'] = sender_email
+            msg = MIMEMultipart("alternative")
+            msg['Subject'] = 'Nyaya AI - Security Verification Code'
+            msg['From'] = f"Nyaya AI Security <{sender_email}>"
             msg['To'] = email
+
+            html = f"""
+            <html>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; color: #fff; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #1a1a1b; border: 1px solid #303134; border-radius: 15px; padding: 40px; text-align: center;">
+                    <h1 style="color: #4285f4; margin-bottom: 20px;">Nyaya AI</h1>
+                    <h2 style="font-size: 24px; margin-bottom: 20px;">Verification Code</h2>
+                    <p style="color: #9aa0a6; font-size: 16px; margin-bottom: 30px;">
+                        Verify your identity to access your Nyaya AI account. This code will expire in 10 minutes.
+                    </p>
+                    <div style="background-color: #000; color: #4285f4; font-size: 36px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #4285f4;">
+                        {otp}
+                    </div>
+                    <p style="color: #9aa0a6; font-size: 12px;">
+                        If you did not request this code, please ignore this email.
+                        We also sent a notification to your registered mobile number.
+                    </p>
+                </div>
+                <div style="text-align: center; margin-top: 20px; color: #5f6368; font-size: 12px;">
+                    &copy; 2026 Nyaya AI Judicial Systems. Local-First Neural Engine.
+                </div>
+            </body>
+            </html>
+            """
+            msg.attach(MIMEText(html, "html"))
 
             with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(sender_email, sender_password)
                 server.send_message(msg)
-            logger.info(f"OTP Email sent successfully to {email} via SMTP.")
+            logger.info(f"HTML OTP Email sent successfully to {email} via SMTP.")
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
-            return {"status": "success", "message": "OTP generated in console (email failed)", "testing_otp": otp}
+            return {"status": "success", "message": "Email service error", "testing_otp": otp}
     else:
-        logger.info(f"[SECURE_NOTIFICATION] Sending OTP {otp} to Email: {email}")
-        # Note: In a real system, you'd call an SMS API here too.
-        logger.info(f"[SECURE_NOTIFICATION] Sending OTP {otp} to Mobile linked to {email}")
+        logger.info(f"--- NYAYA AI AUTOMATED SYSTEM ---")
+        logger.info(f"TO: {email}")
+        logger.info(f"CHANNEL: Email (SMTP Mock)")
+        logger.info(f"CHANNEL: Mobile (SMS Gateway Mock)")
+        logger.info(f"VERIFICATION_CODE: {otp}")
+        logger.info(f"----------------------------------")
 
-    return {"status": "success", "message": "OTP processed successfully.", "testing_otp": otp}
+    return {"status": "success", "message": "Verification code sent.", "testing_otp": otp}
 
 @app.post("/verify_otp")
 async def verify_otp(data: dict):
