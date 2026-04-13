@@ -65,58 +65,60 @@ const mockStore: any = {
 
 export const dbQuery = async (query: string, params: any[] = []): Promise<any> => {
     if (pool) {
-        const res = await pool.query(query.replace(/\?/g, (_, i) => `$${i + 1}`), params);
-        return res.rows[0];
+        try {
+            const pgQuery = query.replace(/\?/g, (_, i) => `$${i + 1}`);
+            const res = await pool.query(pgQuery, params);
+            return res.rows[0];
+        } catch (err: any) {
+            console.error('DATABASE QUERY ERROR:', err.message);
+            throw err;
+        }
     }
-    // MOCK LOGIN
-    if (query.includes('SELECT * FROM users')) {
-        return mockStore.users.find((u: any) => u.email === params[0] && u.password === params[1]);
-    }
-    // MOCK OTP SELECT
-    if (query.includes('SELECT * FROM otps')) {
-        return mockStore.otps.get(params[0]);
-    }
+    // MOCK MODE
+    console.log('MOCK DB: Querying', query, params);
+    if (query.includes('FROM users')) return mockStore.users.find((u: any) => u.email === params[0]);
+    if (query.includes('FROM otps')) return mockStore.otps.get(params[0]);
     return null;
 };
 
 export const dbRun = async (query: string, params: any[] = []): Promise<void> => {
     if (pool) {
-        const pgQuery = query.replace(/\?/g, (match, i, full) => {
-             // Basic replacement of ? with $1, $2, etc. 
-             // This is a naive implementation for the current use cases.
-             let count = 0;
-             return query.substring(0, full.indexOf(match)).split('?').length + "";
-        });
-        // Simpler approach for the specific queries we have
-        const finalQuery = query
-            .replace('INSERT OR REPLACE INTO users', 'INSERT INTO users') // Postgres syntax
-            .replace('VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (email) DO UPDATE SET password=$2')
-            .replace('INSERT OR REPLACE INTO otps', 'INSERT INTO otps')
-            .replace('VALUES (?, ?, ?, ?)', 'VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO UPDATE SET hash=$2, expiry=$3, attempts=$4')
-            .replace('DELETE FROM otps WHERE email = ?', 'DELETE FROM otps WHERE email = $1')
-            .replace('UPDATE users SET verified = 1 WHERE email = ?', 'UPDATE users SET verified = TRUE WHERE email = $1')
-            .replace('UPDATE otps SET attempts = ? WHERE email = ?', 'UPDATE otps SET attempts = $1 WHERE email = $2');
+        try {
+            // Robust replacement for common patterns
+            let finalQuery = query;
+            if (query.includes('INSERT OR REPLACE INTO users')) {
+                finalQuery = `INSERT INTO users (email, password, first_name, last_name, role, college, registration_no, govt_id, judicial_id) 
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                             ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password`;
+            } else if (query.includes('INSERT OR REPLACE INTO otps')) {
+                finalQuery = `INSERT INTO otps (email, hash, expiry, attempts) 
+                             VALUES ($1, $2, $3, $4) 
+                             ON CONFLICT (email) DO UPDATE SET hash = EXCLUDED.hash, expiry = EXCLUDED.expiry, attempts = EXCLUDED.attempts`;
+            } else {
+                // General parameter replacement
+                let i = 1;
+                finalQuery = query.replace(/\?/g, () => `$${i++}`);
+            }
 
-        await pool.query(finalQuery, params);
+            await pool.query(finalQuery, params);
+        } catch (err: any) {
+            console.error('DATABASE RUN ERROR:', err.message);
+            throw err;
+        }
         return;
     }
 
-    // MOCK REGISTRATION
-    if (query.includes('INSERT INTO users') || query.includes('INSERT OR REPLACE INTO users')) {
-        const [email, password, first_name, last_name, role, college, registration_no, govt_id, judicial_id] = params;
-        const index = mockStore.users.findIndex((u: any) => u.email === email);
-        const user = { email, password, first_name, last_name, role, college, registration_no, govt_id, judicial_id };
-        if (index > -1) mockStore.users[index] = user;
-        else mockStore.users.push(user);
+    // MOCK MODE
+    console.log('MOCK DB: Running', query, params);
+    if (query.includes('users') && (query.includes('INSERT') || query.includes('UPDATE'))) {
+        const email = params[0];
+        const existing = mockStore.users.findIndex((u: any) => u.email === email);
+        if (existing > -1) mockStore.users[existing] = { ...mockStore.users[existing], email };
+        else mockStore.users.push({ email });
     }
-    // MOCK OTP SAVE
-    if (query.includes('INSERT INTO otps') || query.includes('INSERT OR REPLACE INTO otps')) {
-        const [email, hash, expiry, attempts] = params;
-        mockStore.otps.set(email, { email, hash, expiry, attempts });
-    }
-    // MOCK DELETE
-    if (query.includes('DELETE FROM otps')) {
-        mockStore.otps.delete(params[0]);
+    if (query.includes('otps')) {
+        if (query.includes('INSERT')) mockStore.otps.set(params[0], { email: params[0], hash: params[1], expiry: params[2], attempts: params[3] });
+        if (query.includes('DELETE')) mockStore.otps.delete(params[0]);
     }
 };
 
