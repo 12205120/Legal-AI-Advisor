@@ -103,15 +103,6 @@ export default function ProfileModule() {
       if (otpRes.ok) {
         const otpData = await otpRes.json();
         if (otpData.status === "success") {
-          if (otpData.debugOTP) {
-            setFormData(prev => ({ ...prev, otp: otpData.debugOTP }));
-            console.log("Nyaya AI Debug: OTP captured automatically:", otpData.debugOTP);
-            // Optionally auto-verify if debug mode is active
-            setTimeout(() => {
-                const fakeEvent = { preventDefault: () => {} } as any;
-                handleOtpVerify(fakeEvent, otpData.debugOTP);
-            }, 1000);
-          }
           setIsOtpStep(true);
         } else {
           alert(otpData.message || "Failed to send OTP.");

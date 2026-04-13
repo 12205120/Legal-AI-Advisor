@@ -50,8 +50,7 @@ export async function POST(request: Request) {
         } else {
             return NextResponse.json({ 
                 status: 'success', 
-                message: 'ACTION REQUIRED: Please fill in your Gmail credentials. (Debug Code: ' + otp + ')',
-                debugOTP: otp 
+                message: 'ACTION REQUIRED: Please fill in your Gmail credentials in the .env. (Debug: Check server terminal for OTP)',
             });
         }
     } catch (error: any) {
