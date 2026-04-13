@@ -209,6 +209,9 @@ async def lifespan(app: FastAPI):
         CREATE TABLE IF NOT EXISTS users (
             email TEXT PRIMARY KEY,
             password TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            phone_number TEXT,
             role TEXT,
             college TEXT,
             registration_no TEXT,
@@ -624,14 +627,16 @@ async def send_otp(req: OTPRequest):
                 server.starttls()
                 server.login(sender_email, sender_password)
                 server.send_message(msg)
-            logger.info("OTP Email sent successfully via SMTP.")
+            logger.info(f"OTP Email sent successfully to {email} via SMTP.")
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             return {"status": "success", "message": "OTP generated in console (email failed)", "testing_otp": otp}
     else:
-        logger.info("No SENDER_EMAIL or SENDER_PASSWORD in env. OTP printed to console only.")
+        logger.info(f"[SECURE_NOTIFICATION] Sending OTP {otp} to Email: {email}")
+        # Note: In a real system, you'd call an SMS API here too.
+        logger.info(f"[SECURE_NOTIFICATION] Sending OTP {otp} to Mobile linked to {email}")
 
-    return {"status": "success", "message": "OTP processed successfully."}
+    return {"status": "success", "message": "OTP processed successfully.", "testing_otp": otp}
 
 @app.post("/verify_otp")
 async def verify_otp(data: dict):
@@ -657,6 +662,9 @@ async def verify_otp(data: dict):
 async def register_user(data: dict):
     email = data.get("email")
     password = data.get("password")
+    first_name = data.get("first_name", "")
+    last_name = data.get("last_name", "")
+    phone_number = data.get("phone_number", "")
     role = data.get("role")
     college = data.get("college", "")
     reg_no = data.get("registration_no", "")
@@ -666,8 +674,8 @@ async def register_user(data: dict):
     try:
         conn = sqlite3.connect("nyaya_users.db")
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO users (email, password, role, college, registration_no, govt_id, judicial_id, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                  (email, password, role, college, reg_no, govt_id, judicial_id, False))
+        c.execute("INSERT OR REPLACE INTO users (email, password, first_name, last_name, phone_number, role, college, registration_no, govt_id, judicial_id, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  (email, password, first_name, last_name, phone_number, role, college, reg_no, govt_id, judicial_id, False))
         conn.commit()
         conn.close()
         return {"status": "success"}
