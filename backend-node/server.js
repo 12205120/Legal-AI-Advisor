@@ -22,6 +22,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
     else console.log('Connected to SQLite database at:', dbPath);
 });
 
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'ok', server: 'Nyaya Auth' }));
+
 // Create tables
 db.serialize(() => {
     // Users table
