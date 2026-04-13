@@ -66,7 +66,9 @@ const mockStore: any = {
 export const dbQuery = async (query: string, params: any[] = []): Promise<any> => {
     if (pool) {
         try {
-            const pgQuery = query.replace(/\?/g, (_, i) => `$${i + 1}`);
+            // Explicitly cast parameters for Postgres to avoid type inference errors
+            let i = 1;
+            const pgQuery = query.replace(/\?/g, () => `$${i++}::text`); 
             const res = await pool.query(pgQuery, params);
             return res.rows[0];
         } catch (err: any) {
@@ -84,20 +86,24 @@ export const dbQuery = async (query: string, params: any[] = []): Promise<any> =
 export const dbRun = async (query: string, params: any[] = []): Promise<void> => {
     if (pool) {
         try {
-            // Robust replacement for common patterns
             let finalQuery = query;
-            if (query.includes('INSERT OR REPLACE INTO users')) {
+            if (query.includes('INSERT') && query.includes('users')) {
                 finalQuery = `INSERT INTO users (email, password, first_name, last_name, role, college, registration_no, govt_id, judicial_id) 
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                             VALUES ($1::text, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::text, $9::text) 
                              ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password`;
-            } else if (query.includes('INSERT OR REPLACE INTO otps')) {
+            } else if (query.includes('INSERT') && query.includes('otps')) {
                 finalQuery = `INSERT INTO otps (email, hash, expiry, attempts) 
-                             VALUES ($1, $2, $3, $4) 
+                             VALUES ($1::text, $2::text, $3::bigint, $4::integer) 
                              ON CONFLICT (email) DO UPDATE SET hash = EXCLUDED.hash, expiry = EXCLUDED.expiry, attempts = EXCLUDED.attempts`;
+            } else if (query.includes('DELETE FROM otps')) {
+                finalQuery = `DELETE FROM otps WHERE email = $1::text`;
+            } else if (query.includes('UPDATE users SET verified')) {
+                finalQuery = `UPDATE users SET verified = TRUE WHERE email = $1::text`;
+            } else if (query.includes('UPDATE otps SET attempts')) {
+                finalQuery = `UPDATE otps SET attempts = $1::integer WHERE email = $2::text`;
             } else {
-                // General parameter replacement
                 let i = 1;
-                finalQuery = query.replace(/\?/g, () => `$${i++}`);
+                finalQuery = query.replace(/\?/g, () => `$${i++}::text`);
             }
 
             await pool.query(finalQuery, params);
