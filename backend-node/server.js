@@ -71,13 +71,14 @@ app.post('/send-otp', async (req, res) => {
             await transporter.sendMail(mailOptions);
             res.json({ status: 'success', message: 'OTP sent to email.' });
         } else {
-            console.warn('--- WARNING: EMAIL CREDENTIALS MISSING ---');
-            console.warn('Set GMAIL_USER and GMAIL_PASS in .env to send real emails.');
-            console.warn(`DEBUG OTP for ${email}: ${otp}`);
-            console.warn('-------------------------------------------');
+            console.warn('--- ACTION REQUIRED: EMAIL CREDENTIALS MISSING ---');
+            console.warn('Open c:\\Users\\DELL\\frontend\\backend-node\\.env');
+            console.warn('Enter your Gmail and App Password.');
+            console.warn(`DEBUG OTP (for testing): ${otp}`);
+            console.warn('--------------------------------------------------');
             res.json({ 
                 status: 'success', 
-                message: 'Server in DEBUG MODE (Credentials missing). Check terminal for OTP.',
+                message: 'ACTION REQUIRED: Please fill in your Gmail credentials in the backend-node/.env file and restart the server to receive real emails. (Debug Code: ' + otp + ' is in your terminal)',
                 debugOTP: otp 
             });
         }
