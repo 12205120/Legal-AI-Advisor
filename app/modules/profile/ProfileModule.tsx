@@ -90,7 +90,7 @@ export default function ProfileModule() {
       }
 
       // Both flows send an OTP via the new Node.js server
-      const authUrl = "http://localhost:5000";
+      const authUrl = "http://127.0.0.1:5000";
       const otpRes = await fetch(`${authUrl}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,7 +122,7 @@ export default function ProfileModule() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const authUrl = "http://localhost:5000";
+      const authUrl = "http://127.0.0.1:5000";
       const res = await fetch(`${authUrl}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
