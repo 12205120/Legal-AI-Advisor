@@ -19,11 +19,11 @@ const gestureLabels: Record<string, string> = {
 };
 
 const gestureColors: Record<string, string> = {
-  POINT: "#00ffff",
-  PINCH: "#ff00ff",
-  PALM: "#ffa500",
+  POINT: "#f21c1c",
+  PINCH: "#ecb31c",
+  PALM: "#7c0c0c",
   FIST: "#ffffff",
-  NONE: "#00ffff",
+  NONE: "#f21c1c",
 };
 
 // ── Hand SVG that mirrors actual hand geometry ────────────────────────────
@@ -228,7 +228,7 @@ export default function GestureCursor() {
             <motion.span
               animate={{ opacity: [1, 0.2, 1] }}
               transition={{ duration: 1.2, repeat: Infinity }}
-              style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(0,255,255,0.5)", display: "inline-block" }}
+              style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(242,28,28,0.5)", display: "inline-block" }}
             />
             SCANNING FOR HAND…
           </motion.div>
@@ -243,10 +243,10 @@ export default function GestureCursor() {
         style={{
           width: 240,
           height: 180,
-          border: `1.5px solid ${handDetected ? "rgba(0,255,255,0.6)" : "rgba(0,255,255,0.25)"}`,
+          border: `1.5px solid ${handDetected ? "rgba(242,28,28,0.6)" : "rgba(242,28,28,0.25)"}`,
           boxShadow: handDetected
-            ? "0 0 30px rgba(0,255,255,0.3)"
-            : "0 0 15px rgba(0,255,255,0.1)",
+            ? "0 0 30px rgba(242,28,28,0.3)"
+            : "0 0 15px rgba(242,28,28,0.1)",
           background: "#000",
           transition: "border-color 0.3s, box-shadow 0.3s",
         }}
@@ -281,9 +281,9 @@ export default function GestureCursor() {
 
         {/* LIVE / DETECTING badges */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none"
-          style={{ background: "rgba(0,0,0,0.75)", padding: "3px 8px", borderRadius: 7, border: "1px solid rgba(0,255,255,0.3)" }}>
-          <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#0ff", display: "inline-block" }} />
-          <span style={{ color: "#0ff", fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", fontFamily: "monospace" }}>
+          style={{ background: "rgba(0,0,0,0.75)", padding: "3px 8px", borderRadius: 7, border: "1px solid rgba(242,28,28,0.3)" }}>
+          <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#f21c1c", display: "inline-block" }} />
+          <span style={{ color: "#f21c1c", fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", fontFamily: "monospace" }}>
             {handDetected ? "HAND DETECTED" : "GESTURE CAM"}
           </span>
         </div>

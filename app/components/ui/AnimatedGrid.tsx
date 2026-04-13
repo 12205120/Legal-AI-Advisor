@@ -20,7 +20,7 @@ export default function AnimatedGrid() {
         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
         className="absolute w-[200vw] h-[200vh] -left-[50vw] -top-[50vh]"
         style={{
-          background: "repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0, 234, 255, 0.1) 40px, rgba(0, 234, 255, 0.1) 42px), repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(176, 38, 255, 0.1) 40px, rgba(176, 38, 255, 0.1) 42px)",
+          background: "repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(242, 28, 28, 0.1) 40px, rgba(242, 28, 28, 0.1) 42px), repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(236, 179, 28, 0.1) 40px, rgba(236, 179, 28, 0.1) 42px)",
           transformOrigin: "center 70%",
           boxShadow: "inset 0 0 400px #000",
         }}
@@ -48,7 +48,7 @@ export default function AnimatedGrid() {
             top: `${20 + Math.random() * 60}%`,
             width: `${100 + Math.random() * 200}px`,
             height: `${100 + Math.random() * 200}px`,
-            background: `radial-gradient(circle, ${i % 2 === 0 ? "rgba(0,255,255,0.4)" : "rgba(157,0,255,0.4)"} 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${i % 2 === 0 ? "rgba(242,28,28,0.3)" : "rgba(236,179,28,0.3)"} 0%, transparent 70%)`,
             filter: "blur(20px)",
           }}
         />
@@ -60,7 +60,7 @@ export default function AnimatedGrid() {
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         className="absolute inset-0 opacity-20"
         style={{
-          backgroundImage: "linear-gradient(135deg, transparent 40%, rgba(57, 255, 20, 0.3) 50%, transparent 60%)",
+          backgroundImage: "linear-gradient(135deg, transparent 40%, rgba(242, 28, 28, 0.2) 50%, transparent 60%)",
           backgroundSize: "200% 200%",
         }}
       />

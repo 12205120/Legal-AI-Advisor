@@ -30,17 +30,17 @@ export default function GestureToggle() {
         className="fixed bottom-6 left-6 z-[9997] flex items-center gap-2.5 select-none"
         style={{
           background: isActive
-            ? "linear-gradient(135deg, rgba(0,255,255,0.15), rgba(0,100,255,0.15))"
+            ? "linear-gradient(135deg, rgba(242,28,28,0.15), rgba(0,0,0,0.4))"
             : "rgba(0,0,0,0.7)",
-          border: isActive ? "1.5px solid rgba(0,255,255,0.6)" : "1.5px solid rgba(255,255,255,0.15)",
+          border: isActive ? "1.5px solid rgba(242,28,28,0.6)" : "1.5px solid rgba(255,255,255,0.15)",
           borderRadius: 14,
           padding: "10px 18px",
           boxShadow: isActive
-            ? "0 0 24px rgba(0,255,255,0.35), inset 0 0 10px rgba(0,255,255,0.08)"
+            ? "0 0 24px rgba(242,28,28,0.35), inset 0 0 10px rgba(242,28,28,0.08)"
             : "0 4px 20px rgba(0,0,0,0.5)",
           backdropFilter: "blur(16px)",
           cursor: "pointer",
-          color: isActive ? "#00ffff" : "rgba(255,255,255,0.6)",
+          color: isActive ? "#ecb31c" : "rgba(255,255,255,0.6)",
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: "0.12em",
@@ -54,8 +54,8 @@ export default function GestureToggle() {
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: isActive ? "#00ffff" : "rgba(255,255,255,0.25)",
-            boxShadow: isActive ? "0 0 8px #00ffff" : "none",
+            background: isActive ? "#ecb31c" : "rgba(255,255,255,0.25)",
+            boxShadow: isActive ? "0 0 8px #ecb31c" : "none",
             display: "inline-block",
             flexShrink: 0,
           }}
@@ -68,12 +68,12 @@ export default function GestureToggle() {
         {isActive && gesture !== "NONE" && (
           <span
             style={{
-              background: "rgba(0,255,255,0.15)",
-              border: "1px solid rgba(0,255,255,0.3)",
+              background: "rgba(242,28,28,0.15)",
+              border: "1px solid rgba(242,28,28,0.3)",
               borderRadius: 6,
               padding: "1px 6px",
               fontSize: 9,
-              color: "#00ffff",
+              color: "#ecb31c",
             }}
           >
             {gesture}
@@ -91,16 +91,16 @@ export default function GestureToggle() {
             className="fixed bottom-24 left-6 z-[9997] pointer-events-none"
             style={{
               background: "rgba(0,0,0,0.92)",
-              border: "1px solid rgba(0,255,255,0.3)",
+              border: "1px solid rgba(242,28,28,0.3)",
               borderRadius: 14,
               padding: "14px 18px",
               maxWidth: 280,
-              boxShadow: "0 0 30px rgba(0,255,255,0.15)",
+              boxShadow: "0 0 30px rgba(242,28,28,0.15)",
             }}
           >
             <div
               style={{
-                color: "#00ffff",
+                color: "#ecb31c",
                 fontWeight: 800,
                 fontSize: 11,
                 letterSpacing: "0.15em",

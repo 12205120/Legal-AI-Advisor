@@ -17,7 +17,7 @@ export default function FloatingParticles() {
       size: Math.random() * 4 + 1,
       duration: Math.random() * 20 + 20,
       delay: Math.random() * 10,
-      color: i % 3 === 0 ? "#00e5ff" : i % 3 === 1 ? "#0ea5e9" : "#38bdf8",
+      color: i % 3 === 0 ? "#f21c1c" : i % 3 === 1 ? "#ecb31c" : "#7c0c0c",
     }));
   }, []);
 
@@ -29,12 +29,12 @@ export default function FloatingParticles() {
       <motion.div
         animate={{ opacity: [0.1, 0.2, 0.1] }}
         transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-        className="w-[800px] h-[800px] bg-[#00e5ff]/15 rounded-full blur-[150px] absolute -top-[200px] -left-[200px] mix-blend-screen"
+        className="w-[800px] h-[800px] bg-[#f21c1c]/10 rounded-full blur-[150px] absolute -top-[200px] -left-[200px] mix-blend-screen"
       />
       <motion.div
         animate={{ opacity: [0.05, 0.2, 0.05] }}
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        className="w-[1000px] h-[1000px] bg-[#0ea5e9]/10 rounded-full blur-[200px] absolute -bottom-[300px] -right-[300px] mix-blend-screen"
+        className="w-[1000px] h-[1000px] bg-[#ecb31c]/10 rounded-full blur-[200px] absolute -bottom-[300px] -right-[300px] mix-blend-screen"
       />
 
       {/* 3D Flowing Mathematical Particles */}

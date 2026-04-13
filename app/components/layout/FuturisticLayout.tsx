@@ -30,13 +30,13 @@ export default function FuturisticLayout({
       {/* Animated onboarding demo for new users */}
       <GestureOnboarding />
 
-      <div className="relative min-h-screen bg-slate-950 text-slate-100 overflow-hidden">
+      <div className="relative min-h-screen bg-black text-slate-100 overflow-hidden">
         <AnimatedGrid />
         <FloatingParticles />
 
         <div className="relative z-10 flex h-screen">
           <Sidebar active={activeTab} setActive={setActiveTab} />
-          <div className="flex-1 flex flex-col backdrop-blur-2xl bg-slate-900/40 border-l border-white/5">
+          <div className="flex-1 flex flex-col backdrop-blur-2xl bg-black/40 border-l border-red-600/20">
             <Topbar />
             <div className="flex-1 p-8 overflow-y-auto overflow-x-hidden scrollbar-hide">
               {children}
