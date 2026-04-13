@@ -25,7 +25,7 @@ export default function Home() {
             <div className="mb-14 relative">
               <div className="absolute -left-8 top-0 bottom-0 w-1 bg-[#f21c1c]/40 rounded-full" />
               <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none mb-4 uppercase">
-                JUDICIAL <span className="text-[#f21c1c]">CHALLENGERS</span> <span className="text-[#ecb31c]">BANGALORE</span>
+                JUDICIAL <span className="text-[#f21c1c]">INTELLIGENCE</span>
               </h1>
               <div className="flex items-center gap-4 text-[10px] tracking-[0.3em] font-black text-slate-500 uppercase mb-6">
                 <span>Protocol: AI_SARA_v2</span>
