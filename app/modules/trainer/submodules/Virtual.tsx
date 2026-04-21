@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBailApplications, BailApplication } from "../../../lib/bail_store";
 import { LegalService, ArgumentAnalysis } from "../../../lib/legal_service";
+import SaraAvatar from "../../../components/ui/SaraAvatar";
 
 export default function Virtual() {
   const searchParams = useSearchParams();
@@ -22,6 +23,12 @@ export default function Virtual() {
   const [inviteLink, setInviteLink] = useState("");
   
   const hasAutoStarted = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
 
   useEffect(() => {
     if (initialSession && !hasAutoStarted.current) {
@@ -90,17 +97,26 @@ export default function Virtual() {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices();
-      // Prioritize Indian Female voices, then other Female voices for a sweet tone
-      utterance.voice = voices.find(v => (v.lang.includes("en-IN") || v.lang.includes("hi-IN")) && (v.name.includes("Female") || v.name.includes("Heera") || v.name.includes("Neerja") || v.name.includes("Kajal"))) 
-        || voices.find(v => v.name.includes("Female") || v.name.includes("female") || v.name.includes("Samantha") || v.name.includes("Zira")) 
-        || null;
-      utterance.pitch = 1.3; // Higher pitch for sweeter voice
-      utterance.rate = 0.95; // Slightly slower for clarity
-      utterance.onstart = () => setFullPendingText(text);
-      utterance.onend = () => setIsAvatarTalking(false);
-      utterance.onerror = () => setIsAvatarTalking(false);
-      window.speechSynthesis.speak(utterance);
+      
+      const setVoiceAndSpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        // Prioritize Indian Female voices, then other Female voices for a sweet tone
+        utterance.voice = voices.find(v => (v.lang.includes("en-IN") || v.lang.includes("hi-IN")) && (v.name.includes("Female") || v.name.includes("Heera") || v.name.includes("Neerja") || v.name.includes("Kajal"))) 
+          || voices.find(v => v.name.includes("Female") || v.name.includes("female") || v.name.includes("Samantha") || v.name.includes("Zira")) 
+          || voices[0] || null;
+        utterance.pitch = 1.3; // Higher pitch for sweeter voice
+        utterance.rate = 0.95; // Slightly slower for clarity
+        utterance.onstart = () => setFullPendingText(text);
+        utterance.onend = () => setIsAvatarTalking(false);
+        utterance.onerror = () => setIsAvatarTalking(false);
+        window.speechSynthesis.speak(utterance);
+      };
+
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = setVoiceAndSpeak;
+      } else {
+        setVoiceAndSpeak();
+      }
     }
   };
 
@@ -190,23 +206,15 @@ export default function Virtual() {
         if (data.message) {
           const senderLabel = data.sender_role || (role === "Accused" ? "Public Prosecutor" : "Defense Counsel");
           setTranscript((prev) => [...prev, { role: senderLabel, text: data.message }]);
-          setFullPendingText(data.message);
+          speakOffline(data.message);
         } else if (data.query) {
           // P2P Human Broadcast incoming
           const senderLabel = data.role || (role === "Accused" ? "Public Prosecutor" : "Defense Counsel");
           setTranscript((prev) => [...prev, { role: senderLabel, text: data.query }]);
-          // Basic TTS fallback if configured, here we just show subtitles
-          setFullPendingText(data.query);
+          speakOffline(data.query);
         }
         if (data.url) setSaraVideoUrl(data.url);
-        if (data.audio_url) {
-          setSaraAudioUrl(data.audio_url);
-          // Auto-play audio
-          if (saraAudioRef.current) {
-            saraAudioRef.current.src = data.audio_url;
-            saraAudioRef.current.play().catch(() => {});
-          }
-        }
+        // We purposefully ignore data.audio_url here so we ALWAYS use the local browser TTS (sweet lady voice)
       } catch (err) {
         console.error(err);
       }
@@ -933,82 +941,7 @@ export default function Virtual() {
                   />
                 ) : (
                   <div className="w-full h-full relative overflow-hidden bg-slate-900 flex items-center justify-center border-l border-white/5">
-                    <style>{`
-                      @keyframes breathing {
-                        0%, 100% { transform: scale(1) translateY(0); opacity: 0.95; }
-                        50% { transform: scale(1.01) translateY(-2px); opacity: 1; }
-                      }
-                      @keyframes blinking {
-                        0%, 45%, 48%, 55%, 100% { transform: scaleY(1); }
-                        46.5% { transform: scaleY(0.1); }
-                        52% { transform: scaleY(0.1); }
-                      }
-                      @keyframes swaying {
-                        0%, 100% { transform: rotate(0deg) translateX(0px) skewX(0deg); }
-                        33% { transform: rotate(0.5deg) translateX(2px) skewX(0.5deg); }
-                        66% { transform: rotate(-0.5deg) translateX(-2px) skewX(-0.5deg); }
-                      }
-                      @keyframes hair-flow {
-                        0%, 100% { transform: skewX(0deg); }
-                        50% { transform: skewX(1deg) translateY(1px); }
-                      }
-                      @keyframes mouth-talk {
-                        0%, 100% { height: 4px; border-radius: 50%; width: 24px; }
-                        50% { height: 18px; border-radius: 40%; width: 22px; }
-                        75% { height: 10px; border-radius: 45%; width: 26px; }
-                      }
-                      .sara-body { animation: breathing 5s ease-in-out infinite, swaying 10s ease-in-out infinite, hair-flow 6s ease-in-out infinite; transform-origin: bottom center; }
-                      .sara-eyes { animation: blinking 6s infinite; }
-                      .sara-mouth { animation: mouth-talk 0.2s infinite; }
-                    `}</style>
-                    
-                    {/* Main Sara Body (Using sara-human.jpg for realism) */}
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center sara-body outline-none border-none"
-                      style={{ backgroundImage: 'url(/sara-human.jpg)' }}
-                    >
-                      {/* Realistic Eye Overlay (Blinking) */}
-                      <div className="absolute top-[34%] left-[28%] w-[44%] h-[6%] flex justify-between px-8 sara-eyes">
-                         <div className="w-5 h-5 bg-black rounded-full opacity-0" />
-                         <div className="w-5 h-5 bg-black rounded-full opacity-0" />
-                      </div>
-                    </div>
-
-                    {/* Dark overlay for contrast */}
-                    <div className="absolute inset-0 bg-black/20 z-10 pointer-events-none" />
-                    
-                    {/* Physics-based Mouth for Lip Sync */}
-                    {isAvatarTalking && (
-                      <div className="absolute top-[52%] left-[50.5%] -translate-x-1/2 w-6 bg-black/90 z-20 sara-mouth border border-red-500/30 shadow-[0_0_10px_rgba(242,28,28,0.5)]" />
-                    )}
-                  </div>
-                )}
-
-                {/* Speaking wave animation */}
-                {!saraVideoUrl && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
-                    <div className="w-24 h-24 rounded-full bg-red-600/10 border border-red-600/30 flex items-center justify-center text-4xl mb-4">
-                      ⚖
-                    </div>
-                    <div className="flex items-end gap-[3px] h-6 opacity-70">
-                      {[...Array(14)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          animate={{
-                            height: [3, Math.random() * 18 + 6, Math.random() * 10 + 4, Math.random() * 22 + 6, 3],
-                          }}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 1.0 + Math.random() * 0.6,
-                            delay: i * 0.08,
-                          }}
-                          className="w-[3px] bg-red-500 rounded-full"
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-3 text-red-500/60 text-[10px] tracking-[0.3em] uppercase font-bold">
-                      Sara — AI Counsel
-                    </div>
+                    <SaraAvatar isTalking={isAvatarTalking} />
                   </div>
                 )}
 
