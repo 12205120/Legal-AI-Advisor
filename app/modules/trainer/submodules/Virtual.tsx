@@ -8,12 +8,13 @@ import { LegalService, ArgumentAnalysis } from "../../../lib/legal_service";
 export default function Virtual() {
   const searchParams = useSearchParams();
   const initialSession = searchParams.get("session");
+  const urlRole = searchParams.get("role");
   
   // Pre-court setup states
   const [sessionId, setSessionId] = useState(initialSession || "");
   const [setupPhase, setSetupPhase] = useState(!initialSession);
   const [selectedLaw, setSelectedLaw] = useState("CONSTITUTIONAL LAW");
-  const [role, setRole] = useState("Victim");
+  const [role, setRole] = useState(urlRole || "Victim");
   const [opponent, setOpponent] = useState("AI Sara");
   const [judge, setJudge] = useState("AI Judge");
 
@@ -89,9 +90,13 @@ export default function Virtual() {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.voice = window.speechSynthesis.getVoices().find(v => v.name.includes("Female") || v.name.includes("female") || v.name.includes("Samantha") || v.name.includes("Zira")) || null;
-      utterance.pitch = 1.1;
-      utterance.rate = 1.05;
+      const voices = window.speechSynthesis.getVoices();
+      // Prioritize Indian Female voices, then other Female voices for a sweet tone
+      utterance.voice = voices.find(v => (v.lang.includes("en-IN") || v.lang.includes("hi-IN")) && (v.name.includes("Female") || v.name.includes("Heera") || v.name.includes("Neerja") || v.name.includes("Kajal"))) 
+        || voices.find(v => v.name.includes("Female") || v.name.includes("female") || v.name.includes("Samantha") || v.name.includes("Zira")) 
+        || null;
+      utterance.pitch = 1.3; // Higher pitch for sweeter voice
+      utterance.rate = 0.95; // Slightly slower for clarity
       utterance.onstart = () => setFullPendingText(text);
       utterance.onend = () => setIsAvatarTalking(false);
       utterance.onerror = () => setIsAvatarTalking(false);
@@ -572,15 +577,17 @@ export default function Virtual() {
             </button>
           )}
 
-          {/* Share to Audience Button (Visible only to Judge) */}
-          {role === "Judge" && (
+          {/* Share to Audience Button (Visible to any participant) */}
+          {role !== "Audience" && (
             <button
                onClick={() => {
-                 alert("Case link and argument schedule sent to registered audience members.");
+                 const audienceLink = `${window.location.origin}/?session=${sessionId || "pending"}&mode=court&role=Audience`;
+                 navigator.clipboard.writeText(audienceLink);
+                 alert(`Public Spectator Link copied to clipboard:\n${audienceLink}\nShare this with the public to watch the case.`);
                }}
-               className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/40 rounded-lg text-blue-300 text-[10px] font-bold tracking-widest uppercase transition-all"
+               className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/40 rounded-lg text-blue-300 text-[10px] sm:text-xs font-bold tracking-widest uppercase transition-all"
             >
-              👥 Audience Invite
+              👥 Public Spectator Link
             </button>
           )}
 
@@ -697,10 +704,10 @@ export default function Virtual() {
       </AnimatePresence>
 
       {/* Court Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 h-[75vh] min-h-[600px]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 h-[75vh] max-h-[75vh] min-h-[600px] overflow-hidden">
         {/* LEFT — USER (Hidden for Judge/Audience) */}
         {role !== "Judge" && role !== "Audience" && (
-          <div className="col-span-1 bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden flex flex-col relative shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+          <div className="col-span-1 bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden flex flex-col relative shadow-[0_4px_30px_rgba(0,0,0,0.5)] h-full">
             <div className="absolute top-4 left-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-white/10 backdrop-blur-md">
               <div className="text-[10px] text-white/50 uppercase tracking-widest">Advocate</div>
               <div className="text-xs text-white uppercase font-bold">{role}</div>
@@ -775,7 +782,7 @@ export default function Virtual() {
         )}
 
         {/* MIDDLE — Transcript + Scenario */}
-        <div className={`col-span-1 flex flex-col gap-4 ${role === "Judge" || role === "Audience" ? "lg:col-span-3" : "lg:col-span-2"}`}>
+        <div className={`col-span-1 flex flex-col gap-4 h-full overflow-hidden ${role === "Judge" || role === "Audience" ? "lg:col-span-3" : "lg:col-span-2"}`}>
           {/* Judge bench */}
           <div className="h-36 bg-slate-900/50 border border-orange-500/20 rounded-3xl overflow-hidden relative">
             <div className="absolute top-3 left-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-orange-500/30">
@@ -800,7 +807,7 @@ export default function Virtual() {
           </div>
 
           {/* Transcript */}
-          <div className="flex-1 bg-black/40 border border-white/5 rounded-3xl p-5 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex-1 bg-black/40 border border-white/5 rounded-3xl p-5 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)] overflow-hidden">
             <div className="mb-3 pb-3 border-b border-white/10 text-xs text-white/60 leading-relaxed font-serif max-h-24 overflow-y-auto pr-1 flex flex-col items-start gap-2">
               <div className="flex items-center justify-between w-full">
                 <span className="text-red-500 text-[10px] tracking-widest uppercase font-sans font-bold">
@@ -903,7 +910,7 @@ export default function Virtual() {
         </div>
 
         {/* RIGHT — Sara/Opponent */}
-        <div className="col-span-1 bg-black/50 border border-white/10 rounded-3xl overflow-hidden relative flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+        <div className="col-span-1 bg-black/50 border border-white/10 rounded-3xl overflow-hidden relative flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.5)] h-full">
           <div className="absolute top-4 right-4 z-10 bg-black/50 px-3 py-1 rounded-md border border-white/10 text-right">
             <div className="text-[10px] text-white/50 uppercase tracking-widest">Opposition</div>
             <div className="text-xs text-white uppercase font-bold">
@@ -928,25 +935,31 @@ export default function Virtual() {
                   <div className="w-full h-full relative overflow-hidden bg-slate-900 flex items-center justify-center border-l border-white/5">
                     <style>{`
                       @keyframes breathing {
-                        0%, 100% { transform: scale(1); opacity: 0.95; }
-                        50% { transform: scale(1.02); opacity: 1; }
+                        0%, 100% { transform: scale(1) translateY(0); opacity: 0.95; }
+                        50% { transform: scale(1.01) translateY(-2px); opacity: 1; }
                       }
                       @keyframes blinking {
-                        0%, 45%, 55%, 100% { transform: scaleY(1); }
-                        50% { transform: scaleY(0.1); }
+                        0%, 45%, 48%, 55%, 100% { transform: scaleY(1); }
+                        46.5% { transform: scaleY(0.1); }
+                        52% { transform: scaleY(0.1); }
                       }
                       @keyframes swaying {
-                        0%, 100% { transform: rotate(0deg) translateX(0px); }
-                        33% { transform: rotate(0.5deg) translateX(2px); }
-                        66% { transform: rotate(-0.5deg) translateX(-2px); }
+                        0%, 100% { transform: rotate(0deg) translateX(0px) skewX(0deg); }
+                        33% { transform: rotate(0.5deg) translateX(2px) skewX(0.5deg); }
+                        66% { transform: rotate(-0.5deg) translateX(-2px) skewX(-0.5deg); }
+                      }
+                      @keyframes hair-flow {
+                        0%, 100% { transform: skewX(0deg); }
+                        50% { transform: skewX(1deg) translateY(1px); }
                       }
                       @keyframes mouth-talk {
-                        0%, 100% { height: 4px; border-radius: 50%; }
-                        50% { height: 16px; border-radius: 40%; }
+                        0%, 100% { height: 4px; border-radius: 50%; width: 24px; }
+                        50% { height: 18px; border-radius: 40%; width: 22px; }
+                        75% { height: 10px; border-radius: 45%; width: 26px; }
                       }
-                      .sara-body { animation: breathing 4s ease-in-out infinite, swaying 8s ease-in-out infinite; }
-                      .sara-eyes { animation: blinking 4s infinite; }
-                      .sara-mouth { animation: mouth-talk 0.15s infinite; }
+                      .sara-body { animation: breathing 5s ease-in-out infinite, swaying 10s ease-in-out infinite, hair-flow 6s ease-in-out infinite; transform-origin: bottom center; }
+                      .sara-eyes { animation: blinking 6s infinite; }
+                      .sara-mouth { animation: mouth-talk 0.2s infinite; }
                     `}</style>
                     
                     {/* Main Sara Body (Using sara-human.jpg for realism) */}
