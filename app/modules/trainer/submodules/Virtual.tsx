@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getBailApplications, BailApplication } from "../../../lib/bail_store";
 import { LegalService, ArgumentAnalysis } from "../../../lib/legal_service";
-import SaraAvatar from "../../../components/ui/SaraAvatar";
+import VRMAvatar from "../../../components/ui/VRMAvatar";
 
 export default function Virtual() {
   const searchParams = useSearchParams();
@@ -941,7 +941,7 @@ export default function Virtual() {
                   />
                 ) : (
                   <div className="w-full h-full relative overflow-hidden bg-slate-900 flex items-center justify-center border-l border-white/5">
-                    <SaraAvatar isTalking={isAvatarTalking} />
+                    <VRMAvatar isTalking={isAvatarTalking} vrmUrl="/sara.vrm" />
                   </div>
                 )}
 
