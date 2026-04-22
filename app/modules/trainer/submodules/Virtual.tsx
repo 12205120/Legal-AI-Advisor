@@ -77,13 +77,10 @@ export default function Virtual() {
     
     // Average speaking rate: audio length roughly correlates to text. 
     // About 25-40ms per character is standard TTS speed.
+    setIsAvatarTalking(true);
     const interval = setInterval(() => {
       if (i < chars.length) {
         setLiveSubtitleText(prev => prev + chars[i]);
-        // Avatar mouth opens more on vowels and alphanumeric chars
-        const char = chars[i].toLowerCase();
-        const triggersMouth = /[aeiouy]/.test(char) ? Math.random() > 0.1 : (/[a-z0-9]/.test(char) ? Math.random() > 0.4 : false);
-        setIsAvatarTalking(triggersMouth);
         i++;
       } else {
         clearInterval(interval);

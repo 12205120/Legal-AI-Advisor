@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useGesture } from "../../components/ui/GestureContext";
 import Solve from "./submodules/Solve";
 import Generator from "./submodules/Generator";
@@ -8,7 +9,9 @@ import Assessment from "./submodules/Assessment";
 import Virtual from "./submodules/Virtual";
 
 export default function TrainerModule() {
-  const [active, setActive] = useState("generator");
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode");
+  const [active, setActive] = useState(mode === "court" ? "court" : "generator");
   const { cursorX, cursorY, isPinching, isActive } = useGesture();
 
   const tabs = [

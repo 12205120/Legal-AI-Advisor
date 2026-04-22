@@ -311,219 +311,178 @@ export default function ProfileModule() {
     );
   }
 
-  // OTP View
-  if (isOtpStep) {
-    return (
-      <div className="min-h-[800px] w-full flex items-center justify-center p-6 text-white relative">
-        <div className="absolute inset-0 bg-black z-0" />
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          className="relative z-10 w-full max-w-md bg-[#1a1a1b] border border-[#303134] p-10 rounded-2xl shadow-xl text-center"
-        >
-          <h1 className="text-2xl text-white mb-2 font-google">2-Step Verification</h1>
-          <p className="text-gray-400 text-sm mb-8">
-            Nyaya AI sent a verification code to your email address.
-           </p>
-          <form onSubmit={handleOtpVerify} className="space-y-6">
-            <input 
-              type="text" 
-              name="otp" 
-              value={formData.otp} 
-              onChange={handleInputChange} 
-              placeholder="Enter code" 
-              className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white text-center text-2xl tracking-[0.5em] focus:border-blue-500 focus:outline-none" 
-              required 
-            />
-            <button 
-              type="submit" 
-              disabled={isLoading} 
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-google rounded-lg transition-all"
-            >
-              {isLoading ? "Verifying..." : "Next"}
-            </button>
-          </form>
-          <button type="button" onClick={() => setIsOtpStep(false)} className="mt-6 text-blue-400 hover:text-blue-300 text-sm font-medium">Try another way</button>
-        </motion.div>
-      </div>
-    );
-  }
+  // ── VISME-STYLE ANIMATED FULLSCREEN FLOW ──
+  
+  const slideVariants = {
+    initial: { opacity: 0, y: 30, scale: 0.98 },
+    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+    exit: { opacity: 0, y: -30, scale: 0.98, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }
+  };
 
-  // Component: Role Selection
-  if (!activeRole) {
-    return (
-      <div className="relative min-h-[80vh] w-full flex flex-col items-center justify-center p-6 text-white overflow-hidden bg-black">
-        <h2 className="text-4xl font-google text-center mb-12">Who are you?</h2>
-        <div className="flex flex-wrap justify-center gap-8 z-10">
-          {[
-            { id: "STUDENT", label: "Student / Citizen", icon: "👤", description: "General public & students" },
-            { id: "LAWYER", label: "Advocate", icon: "⚖️", description: "Legal practitioners" },
-            { id: "JUDGE", label: "Hon'ble Judge", icon: "🔨", description: "Judicial officers" }
-          ].map(role => (
-            <motion.div
-              key={role.id}
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveRole(role.id)}
-              className="cursor-pointer w-72 p-8 rounded-2xl border border-[#303134] bg-[#1a1a1b] flex flex-col items-center text-center transition-colors"
-            >
-              <div className="text-6xl mb-6">{role.icon}</div>
-              <h3 className="text-2xl font-google mb-2">{role.label}</h3>
-              <p className="text-gray-400 text-sm">{role.description}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const currentStepKey = isOtpStep 
+    ? "otp" 
+    : (!isLogin && !activeRole) 
+    ? "role" 
+    : (!isLogin && activeRole === "STUDENT" && !studentType) 
+    ? "student_type" 
+    : "details";
 
-  // Component: Student Type Selection
-  if (activeRole === "STUDENT" && !studentType) {
-    return (
-      <div className="relative min-h-[80vh] w-full flex flex-col items-center justify-center p-6 text-white bg-black">
-        <button onClick={() => setActiveRole(null)} className="absolute top-10 left-10 text-gray-400 hover:text-white flex items-center gap-2">
-          ← Back
-        </button>
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center max-w-md w-full bg-[#1a1a1b] p-10 border border-[#303134] rounded-2xl shadow-2xl">
-          <h2 className="text-2xl font-google mb-8 text-center">Select Account Type</h2>
-          <div className="w-full space-y-4">
-            <button onClick={() => setStudentType("LAW_STUDENT")} className="w-full p-6 border border-[#3c4043] rounded-xl hover:bg-white/5 transition-all text-left">
-              <div className="text-xl font-google mb-1 text-white">Law Student</div>
-              <div className="text-sm text-gray-400">I am currently studying law</div>
-            </button>
-            <button onClick={() => setStudentType("NORMAL_USER")} className="w-full p-6 border border-[#3c4043] rounded-xl hover:bg-white/5 transition-all text-left">
-              <div className="text-xl font-google mb-1 text-white">Citizen / Normal User</div>
-              <div className="text-sm text-gray-400">I want to access legal resources</div>
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Main Google-Style View
   return (
-    <div className="relative min-h-[80vh] w-full flex flex-col items-center justify-center p-6 bg-black">
-      
-      <button onClick={() => studentType ? setStudentType(null) : setActiveRole(null)} className="absolute top-10 left-10 text-gray-400 hover:text-white flex items-center gap-2">
-        ← Change Role
-      </button>
+    <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#0a0a0a] text-white overflow-hidden relative">
+      {/* Visme-style animated background accents */}
+      <div className="absolute top-0 right-0 w-[60vw] h-[60vw] bg-red-600/10 rounded-full blur-[120px] -z-10 animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-[50vw] h-[50vw] bg-yellow-600/5 rounded-full blur-[100px] -z-10" />
 
-      <div className="w-full max-w-[450px] bg-[#1a1a1b] rounded-2xl border border-[#303134] p-10 shadow-2xl overflow-hidden">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl text-white font-google mb-2">Nyaya AI</h1>
-          <h2 className="text-xl text-white font-google">
-            {isLogin ? "Sign In" : "Create Account"}
-          </h2>
-          <p className="text-gray-400 mt-2">
-            {isLogin ? "Use your Nyaya AI Account" : "Starting your judicial journey"}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <AnimatePresence mode="wait">
-            {isLogin ? (
-              <motion.div
-                key="login-fields"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
+      <div className="w-full max-w-2xl relative z-10">
+        <AnimatePresence mode="wait">
+          
+          {currentStepKey === "otp" && (
+            <motion.div key="step-otp" variants={slideVariants} initial="initial" animate="animate" exit="exit" className="bg-[#121212]/80 backdrop-blur-2xl border border-white/10 p-12 rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.5)] text-center">
+              <div className="text-5xl mb-6">🔒</div>
+              <h2 className="text-4xl font-black tracking-tight mb-3">Verification Required</h2>
+              <p className="text-gray-400 text-lg mb-10">We've sent a secure code to <span className="text-white font-medium">{formData.email}</span></p>
+              
+              <form onSubmit={handleOtpVerify} className="space-y-8">
                 <input 
-                  type="email" name="email" value={formData.email} onChange={handleInputChange} 
-                  placeholder="Email" 
-                  className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
+                  type="text" name="otp" value={formData.otp} onChange={handleInputChange} 
+                  placeholder="Enter 6-digit code" 
+                  className="w-full bg-black/50 border border-white/10 p-6 rounded-2xl text-white text-center text-3xl tracking-[0.5em] focus:border-red-500 focus:outline-none transition-colors shadow-inner" 
                   required 
                 />
-                <input 
-                  type="password" name="password" value={formData.password} onChange={handleInputChange} 
-                  placeholder="Password" 
-                  className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                  required 
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="register-fields"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <input 
-                    type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} 
-                    placeholder="First Name" 
-                    className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                    required 
-                  />
-                  <input 
-                    type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} 
-                    placeholder="Last Name" 
-                    className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                    required 
-                  />
-                </div>
-                <input 
-                  type="email" name="email" value={formData.email} onChange={handleInputChange} 
-                  placeholder="Email" 
-                  className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                  required 
-                />
+                <button type="submit" disabled={isLoading} className="w-full py-5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-lg font-bold tracking-widest uppercase rounded-2xl transition-all shadow-[0_0_30px_rgba(220,38,38,0.3)] hover:shadow-[0_0_40px_rgba(220,38,38,0.5)]">
+                  {isLoading ? "Verifying Identity..." : "Complete Access"}
+                </button>
+              </form>
+              <button onClick={() => setIsOtpStep(false)} className="mt-8 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-xs font-bold">
+                Cancel & Go Back
+              </button>
+            </motion.div>
+          )}
 
-                {/* Dynamic Role Inputs */}
-                {activeRole === "STUDENT" && studentType === "LAW_STUDENT" && (
-                  <>
-                    <select name="college" required value={formData.college} onChange={handleInputChange} className="w-full bg-[#1a1a1b] border border-[#3c4043] p-4 rounded-lg text-white appearance-none">
+          {currentStepKey === "role" && (
+            <motion.div key="step-role" variants={slideVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center">
+              <div className="text-red-500 font-bold tracking-[0.3em] uppercase text-sm mb-4">Step 1 of 3</div>
+              <h2 className="text-5xl md:text-6xl font-black text-center mb-12 tracking-tighter">Choose Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400">Legal Identity</span></h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                {[
+                  { id: "STUDENT", label: "Citizen / Student", icon: "👤", desc: "Access basic resources" },
+                  { id: "LAWYER", label: "Advocate", icon: "⚖️", desc: "Professional suite" },
+                  { id: "JUDGE", label: "Hon'ble Judge", icon: "🔨", desc: "Judicial simulation" }
+                ].map(role => (
+                  <motion.div
+                    key={role.id}
+                    whileHover={{ scale: 1.05, y: -5 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveRole(role.id)}
+                    className="cursor-pointer p-8 rounded-3xl border border-white/10 bg-[#121212]/80 backdrop-blur-xl flex flex-col items-center text-center transition-all hover:border-red-500/50 hover:bg-red-500/5 group"
+                  >
+                    <div className="text-5xl mb-6 group-hover:scale-110 transition-transform">{role.icon}</div>
+                    <h3 className="text-xl font-bold mb-2">{role.label}</h3>
+                    <p className="text-gray-500 text-sm">{role.desc}</p>
+                  </motion.div>
+                ))}
+              </div>
+              <button onClick={() => setIsLogin(true)} className="mt-12 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-sm font-bold border-b border-transparent hover:border-white pb-1">
+                Already have an account? Sign In
+              </button>
+            </motion.div>
+          )}
+
+          {currentStepKey === "student_type" && (
+            <motion.div key="step-student-type" variants={slideVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center w-full max-w-xl mx-auto">
+              <div className="text-red-500 font-bold tracking-[0.3em] uppercase text-sm mb-4">Step 2 of 3</div>
+              <h2 className="text-5xl font-black text-center mb-12 tracking-tighter">Specify Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400">Path</span></h2>
+              
+              <div className="w-full space-y-4">
+                <button onClick={() => setStudentType("LAW_STUDENT")} className="w-full p-8 border border-white/10 rounded-3xl bg-[#121212]/80 backdrop-blur-xl hover:border-red-500/50 hover:bg-red-500/5 transition-all text-left group">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors">Law Student</div>
+                      <div className="text-gray-400">Enrolled in an Indian Law College</div>
+                    </div>
+                    <div className="text-3xl opacity-0 group-hover:opacity-100 transform translate-x-[-20px] group-hover:translate-x-0 transition-all">→</div>
+                  </div>
+                </button>
+                <button onClick={() => setStudentType("NORMAL_USER")} className="w-full p-8 border border-white/10 rounded-3xl bg-[#121212]/80 backdrop-blur-xl hover:border-red-500/50 hover:bg-red-500/5 transition-all text-left group">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors">Citizen User</div>
+                      <div className="text-gray-400">Seeking general legal knowledge</div>
+                    </div>
+                    <div className="text-3xl opacity-0 group-hover:opacity-100 transform translate-x-[-20px] group-hover:translate-x-0 transition-all">→</div>
+                  </div>
+                </button>
+              </div>
+              <button onClick={() => setActiveRole(null)} className="mt-10 text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-xs font-bold">
+                ← Back to Roles
+              </button>
+            </motion.div>
+          )}
+
+          {currentStepKey === "details" && (
+            <motion.div key="step-details" variants={slideVariants} initial="initial" animate="animate" exit="exit" className="bg-[#121212]/80 backdrop-blur-2xl border border-white/10 p-10 md:p-14 rounded-[2.5rem] shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+              {!isLogin && (
+                <button onClick={() => studentType ? setStudentType(null) : setActiveRole(null)} className="text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-[10px] font-bold flex items-center gap-2 mb-8">
+                  ← Change Selection
+                </button>
+              )}
+              
+              <div className="mb-10">
+                <div className="text-red-500 font-bold tracking-[0.3em] uppercase text-xs mb-3">Nyaya AI Gateway</div>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white">
+                  {isLogin ? "Welcome Back." : "Final Details."}
+                </h2>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {!isLogin && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="First Name" className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" required />
+                    <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Last Name" className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" required />
+                  </div>
+                )}
+                
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Email Address" className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" required />
+                
+                {!isLogin && activeRole === "STUDENT" && studentType === "LAW_STUDENT" && (
+                  <div className="space-y-5">
+                    <select name="college" required value={formData.college} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none appearance-none transition-colors">
                       <option value="" disabled>Select Law College</option>
                       {lawColleges.map((c, i) => <option key={i} value={c}>{c}</option>)}
                     </select>
-                    <input type="text" name="registrationNo" placeholder="Registration No." required value={formData.registrationNo} onChange={handleInputChange} className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500" />
-                  </>
+                    <input type="text" name="registrationNo" placeholder="College Registration No." required value={formData.registrationNo} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" />
+                  </div>
                 )}
-                {activeRole === "LAWYER" && (
-                   <input type="text" name="govtId" placeholder="Govt Advocate ID" required value={formData.govtId} onChange={handleInputChange} className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500" />
+                
+                {!isLogin && activeRole === "LAWYER" && (
+                  <input type="text" name="govtId" placeholder="Advocate Bar Council ID" required value={formData.govtId} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" />
                 )}
-                {activeRole === "JUDGE" && (
-                   <input type="text" name="judicialId" placeholder="Judicial ID Number" required value={formData.judicialId} onChange={handleInputChange} className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500" />
+                
+                {!isLogin && activeRole === "JUDGE" && (
+                  <input type="text" name="judicialId" placeholder="Judicial Officer ID" required value={formData.judicialId} onChange={handleInputChange} className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" />
                 )}
 
-                <input 
-                  type="password" name="password" value={formData.password} onChange={handleInputChange} 
-                  placeholder="Password" 
-                  className="w-full bg-transparent border border-[#3c4043] p-4 rounded-lg text-white focus:border-blue-500 focus:outline-none" 
-                  required 
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <input type="password" name="password" value={formData.password} onChange={handleInputChange} placeholder="Secure Password" className="w-full bg-black/50 border border-white/10 p-5 rounded-2xl text-white focus:border-red-500 focus:outline-none transition-colors" required />
 
-          <div className="flex items-center justify-between mt-8">
-            <button 
-              type="button" 
-              onClick={() => setIsLogin(!isLogin)} 
-              className="text-blue-400 hover:text-blue-300 text-sm font-medium"
-            >
-              {isLogin ? "Create account" : "Sign in instead"}
-            </button>
-            <button 
-              type="submit" 
-              disabled={isLoading} 
-              className="px-8 py-2 bg-blue-600 hover:bg-blue-500 text-white font-google rounded-lg transition-all"
-            >
-              {isLoading ? "Wait..." : "Next"}
-            </button>
-          </div>
-        </form>
-      </div>
+                <div className="pt-6">
+                  <button type="submit" disabled={isLoading} className="w-full py-5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-sm font-bold tracking-[0.2em] uppercase rounded-2xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.2)] hover:shadow-[0_0_40px_rgba(220,38,38,0.4)]">
+                    {isLoading ? "Authenticating..." : (isLogin ? "Access Intelligence" : "Initialize Identity")}
+                  </button>
+                </div>
+                
+                <div className="text-center pt-4">
+                  <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-gray-500 hover:text-white transition-colors uppercase tracking-widest text-[10px] font-bold">
+                    {isLogin ? "New user? Register now" : "Already registered? Sign in"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
 
-      <div className="mt-8 flex gap-6 text-xs text-gray-500">
-        <span className="cursor-pointer hover:underline">English (United Kingdom)</span>
-        <span className="cursor-pointer hover:underline">Help</span>
-        <span className="cursor-pointer hover:underline">Privacy</span>
-        <span className="cursor-pointer hover:underline">Terms</span>
+        </AnimatePresence>
       </div>
     </div>
   );
+}
 }
