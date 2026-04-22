@@ -7,12 +7,16 @@ import TrainerModule from "./modules/trainer/TrainerModule";
 import Mapper from "./modules/trainer/submodules/Mapper";
 import Bail from "./modules/trainer/submodules/Bail";
 import ProfileModule from "./modules/profile/ProfileModule";
+import AnimatedLoginIntro from "./components/ui/AnimatedLoginIntro";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("trainer");
+  const [showIntro, setShowIntro] = useState(true);
 
   return (
-    <FuturisticLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+    <>
+      {showIntro && <AnimatedLoginIntro onComplete={() => setShowIntro(false)} />}
+      <FuturisticLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <motion.div
         key={activeTab}
         initial={{ opacity: 0, scale: 0.96 }}
@@ -50,5 +54,6 @@ export default function Home() {
         
       </motion.div>
     </FuturisticLayout>
+    </>
   );
 }
