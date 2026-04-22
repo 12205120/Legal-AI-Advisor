@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import FuturisticLayout from "./components/layout/FuturisticLayout";
 import TrainerModule from "./modules/trainer/TrainerModule";
@@ -12,6 +12,13 @@ import AnimatedLoginIntro from "./components/ui/AnimatedLoginIntro";
 export default function Home() {
   const [activeTab, setActiveTab] = useState("trainer");
   const [showIntro, setShowIntro] = useState(true);
+
+  useEffect(() => {
+    const hasSession = localStorage.getItem("nyaya_user");
+    if (hasSession) {
+      setShowIntro(false);
+    }
+  }, []);
 
   return (
     <>

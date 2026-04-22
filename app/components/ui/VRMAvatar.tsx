@@ -87,6 +87,7 @@ export default function VRMAvatar({
     let frameId: number;
     let blinkTimer = 0;
     let isBlinking = false;
+    let blinkDuration = 0.15;
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);
@@ -96,50 +97,76 @@ export default function VRMAvatar({
       if (currentVrm) {
         const time = clock.elapsedTime;
 
-        // A. Breathing Animation (Slightly rotate chest)
+        // A. Breathing & Organic Posture
         const spine = currentVrm.humanoid?.getNormalizedBoneNode("spine");
         if (spine) {
-          // Smooth sine wave for natural breathing
-          spine.rotation.x = Math.sin(time * 1.5) * 0.02;
+          // Complex sine waves for organic breathing
+          spine.rotation.x = Math.sin(time * 1.2) * 0.015 + Math.sin(time * 0.4) * 0.01;
+          spine.rotation.y = Math.sin(time * 0.8) * 0.005;
         }
         
-        // Slight head swaying
+        // Organic head tracking & swaying
         const neck = currentVrm.humanoid?.getNormalizedBoneNode("neck");
-        if (neck) {
-          neck.rotation.y = Math.sin(time * 0.8) * 0.03;
-          neck.rotation.z = Math.cos(time * 0.5) * 0.01;
+        const head = currentVrm.humanoid?.getNormalizedBoneNode("head");
+        if (neck && head) {
+          const yaw = Math.sin(time * 0.5) * 0.02 + Math.sin(time * 1.1) * 0.01;
+          const pitch = Math.sin(time * 0.7) * 0.01 + (isTalking ? Math.abs(Math.sin(time * 3)) * 0.02 : 0);
+          const roll = Math.cos(time * 0.4) * 0.015;
+          
+          neck.rotation.y = yaw * 0.5;
+          neck.rotation.x = pitch * 0.5;
+          neck.rotation.z = roll * 0.5;
+
+          head.rotation.y = yaw;
+          head.rotation.x = pitch;
+          head.rotation.z = roll;
         }
 
-        // B. Blinking Animation
+        // B. Blinking Animation (Double Blinks)
         blinkTimer += deltaTime;
-        if (!isBlinking && blinkTimer > 3 + Math.random() * 4) {
-          // Trigger a blink every 3-7 seconds
+        if (!isBlinking && blinkTimer > 2 + Math.random() * 5) {
           isBlinking = true;
           blinkTimer = 0;
+          // 25% chance of a double blink
+          blinkDuration = Math.random() < 0.25 ? 0.35 : 0.15; 
         }
 
         if (isBlinking) {
-          // Quick close and open (around 0.15s total)
-          const blinkPhase = Math.sin((blinkTimer / 0.15) * Math.PI);
-          if (blinkTimer > 0.15) {
+          let blinkPhase = 0;
+          if (blinkDuration > 0.2) {
+             // Double blink pattern
+             const t = blinkTimer / blinkDuration;
+             blinkPhase = Math.max(0, Math.sin(t * Math.PI * 2.5)); // Two peaks
+          } else {
+             // Single blink
+             blinkPhase = Math.max(0, Math.sin((blinkTimer / blinkDuration) * Math.PI));
+          }
+          
+          if (blinkTimer > blinkDuration) {
             isBlinking = false;
             blinkTimer = 0;
             currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, 0);
           } else {
-            currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, Math.max(0, blinkPhase));
+            currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, blinkPhase);
           }
         }
 
-        // C. Lip-Sync / Talking Animation
+        // C. Advanced Lip-Sync / Talking Animation
         if (isTalking) {
-          // Oscillate mouth open/close very fast when talking
-          const talkPhase = Math.abs(Math.sin(time * 15)); // rapid movement
-          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, talkPhase * 0.8);
-          // Add a slight smile while talking for friendliness
-          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Happy, 0.3);
+          // Mix shapes to simulate natural phonetic speech
+          const aaPhase = Math.max(0, Math.sin(time * 18) * 0.8);
+          const eePhase = Math.max(0, Math.cos(time * 22) * 0.5);
+          const ihPhase = Math.max(0, Math.sin(time * 14 + 1) * 0.4);
+          
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, aaPhase);
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Ee, eePhase);
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Ih, ihPhase);
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Happy, 0.2);
         } else {
           // Reset mouth
           currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, 0);
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Ee, 0);
+          currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Ih, 0);
           // Friendly idle smile
           currentVrm.expressionManager?.setValue(VRMExpressionPresetName.Happy, 0.1);
         }

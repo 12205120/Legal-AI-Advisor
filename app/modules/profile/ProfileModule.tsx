@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const lawColleges = [
@@ -35,6 +35,25 @@ export default function ProfileModule() {
     judicialId: ""
   });
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("nyaya_user");
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setUserProfile(user);
+        setFormData(prev => ({ 
+          ...prev, 
+          firstName: user.firstName || user.first_name || "", 
+          email: user.email || "" 
+        }));
+        setActiveRole(user.role || "STUDENT");
+        setIsAuthenticated(true);
+      } catch (e) {
+        console.error("Failed to parse user session");
+      }
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -133,6 +152,14 @@ export default function ProfileModule() {
       if (data.status === "success") {
         setIsOtpStep(false);
         setIsAuthenticated(true);
+        // Save to localStorage
+        const userData = { 
+          email: formData.email, 
+          firstName: formData.firstName || userProfile?.first_name || "", 
+          role: activeRole, 
+          ...userProfile 
+        };
+        localStorage.setItem("nyaya_user", JSON.stringify(userData));
       } else {
         alert(data.error || "Invalid Verification Code!");
       }
@@ -193,7 +220,8 @@ export default function ProfileModule() {
               onClick={() => { 
                 setIsAuthenticated(false); 
                 setIsOtpStep(false);
-                setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""}) 
+                setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""});
+                localStorage.removeItem("nyaya_user");
               }} 
               className="px-8 py-3 bg-[#111] hover:bg-red-600 border border-red-600/30 rounded-xl text-white font-google transition-all flex items-center gap-2 group"
             >
