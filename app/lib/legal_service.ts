@@ -10,6 +10,7 @@ export interface BailSuggestion {
   bailType: string;
   reason: string;
   draftTemplate: string;
+  error?: string;
 }
 
 export interface ArgumentAnalysis {
