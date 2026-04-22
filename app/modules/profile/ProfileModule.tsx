@@ -485,4 +485,3 @@ export default function ProfileModule() {
     </div>
   );
 }
-}
