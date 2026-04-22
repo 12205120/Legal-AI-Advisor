@@ -65,7 +65,7 @@ export default function VRMAvatar({
         scene.add(vrm.scene);
         
         // Rotate the model slightly so she faces the camera perfectly
-        vrm.scene.rotation.y = Math.PI;
+        vrm.scene.rotation.y = 0;
 
         // Fix rendering order for materials (alpha issues in some VRMs)
         vrm.scene.traverse((obj) => {

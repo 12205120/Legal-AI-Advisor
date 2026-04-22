@@ -183,7 +183,7 @@ export default function Bail() {
         `${caseDescription}${groundsText}\nFIR: ${firNumber}, Charges: ${charges}`
       );
       
-      if (!data) throw new Error("Backend AI Failed");
+      if (!data || data.error) throw new Error(data?.error || "Backend AI Failed");
       setBailResult(data);
       if (data.draftTemplate) setDraftContent(data.draftTemplate);
     } catch (error) {
