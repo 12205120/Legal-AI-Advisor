@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import FuturisticLayout from "./components/layout/FuturisticLayout";
 import TrainerModule from "./modules/trainer/TrainerModule";
@@ -51,7 +51,9 @@ export default function Home() {
                 powered by local Neural Compute.
               </p>
             </div>
-            <TrainerModule />
+            <Suspense fallback={<div className="text-red-500/50 animate-pulse text-xs tracking-widest uppercase">Loading Module...</div>}>
+              <TrainerModule />
+            </Suspense>
           </>
         )}
         
