@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { logAction } from "../../../lib/history_store";
 
 interface MappingData {
   ipcSection: string;
@@ -32,7 +31,6 @@ export default function Mapper() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setMappingResult(data);
-      logAction("Learning", "Mapped law: " + query);
     } catch (error) {
       console.warn("Backend error:", error instanceof Error ? error.message : "Unknown error");
       setTimeout(() => {
@@ -42,9 +40,8 @@ export default function Mapper() {
           bnsSection: "BNS " + (parseInt(fakeIpc || "101") - 20),
           crimeName: "Simulated Offense for " + query,
           punishment: "Simulated punishment up to 3 years or fine.",
-          difference: "The BNS consolidates several IPC clauses to streamline prosecution. This response is generated locally due to the AI API being unreachable."
+          difference: "[OFFLINE FALLBACK ACTIVE]: The BNS consolidates several IPC clauses to stream-line prosecution. This is an offline mock response to demonstrate functionality when the AI API is unreachable."
         });
-        logAction("Learning", "Mapped law using local engine: " + query);
       }, 1000);
     } finally {
       setLoading(false);

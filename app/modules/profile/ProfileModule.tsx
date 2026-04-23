@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getStats, getHistory, formatTimeAgo, logAction } from "../../lib/history_store";
 
 const lawColleges = [
   "National Law School of India University (NLSIU), Bengaluru",
@@ -37,6 +36,9 @@ export default function ProfileModule() {
   });
   const [userProfile, setUserProfile] = useState<any>(null);
 
+  const [userHistory, setUserHistory] = useState<any[]>([]);
+  const [usageStats, setUsageStats] = useState<any[]>([]);
+
   useEffect(() => {
     const savedUser = localStorage.getItem("nyaya_user");
     if (savedUser) {
@@ -54,6 +56,12 @@ export default function ProfileModule() {
         console.error("Failed to parse user session");
       }
     }
+
+    // Fetch history and stats
+    import("@/app/lib/history").then(m => {
+      setUserHistory(m.getHistory());
+      setUsageStats(m.getUsageStats());
+    });
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -174,39 +182,23 @@ export default function ProfileModule() {
 
   // Dashboard View post-login
   if (isAuthenticated) {
-    const [stats, setStats] = useState([]);
-    const [modules, setModules] = useState([]);
-    const [history, setHistory] = useState([]);
+    const stats = [
+      { label: "Total Usage", value: usageStats.reduce((acc, s) => acc + s.count, 0).toString(), unit: "Actions", icon: "🕒", color: "from-red-600/20 to-black/40" },
+      { label: "History Log", value: userHistory.length.toString(), unit: "Entries", icon: "📚", color: "from-yellow-600/20 to-black/40" },
+      { label: "Cases Solved", value: (usageStats.find(s => s.name === "Logic Solver")?.count || 0).toString(), unit: "Cases", icon: "⚖️", color: "from-red-700/20 to-black/40" },
+      { label: "Assessments", value: (usageStats.find(s => s.name === "Assessment")?.count || 0).toString(), unit: "Passed", icon: "🤖", color: "from-yellow-500/20 to-black/40" },
+    ];
 
-    useEffect(() => {
-      // Load stats from local storage
-      const userStats = getStats();
-      const statsArray = [
-        { label: "Total Usage", value: userStats.usageHours.toFixed(1), unit: "Hrs", icon: "🕒", color: "from-red-600/20 to-black/40" },
-        { label: "Learnings", value: userStats.modulesLearned, unit: "Modules", icon: "📚", color: "from-yellow-600/20 to-black/40" },
-        { label: "Cases Solved", value: userStats.casesSolved, unit: "Cases", icon: "⚖️", color: "from-red-700/20 to-black/40" },
-        { label: "AI Interactions", value: userStats.aiInteractions, unit: "Queries", icon: "🤖", color: "from-yellow-500/20 to-black/40" },
-      ];
-      setStats(statsArray);
+    const modules = usageStats.length > 0 ? usageStats : [
+      { name: "Logic Solver", progress: 0, color: "bg-red-600" },
+      { name: "Scenario Generator", progress: 0, color: "bg-yellow-600" },
+      { name: "Assessment", progress: 0, color: "bg-red-500" },
+      { name: "Library", progress: 0, color: "bg-orange-500" },
+    ];
 
-      // Modules are static, keep as is
-      const modulesArray = [
-        { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-red-600" },
-        { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-yellow-600" },
-        { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-red-500" },
-      ];
-      setModules(modulesArray);
-
-      // Load and sort history
-      const rawHistory = getHistory().sort((a, b) => b.time - a.time);
-      const recentHistory = rawHistory.map(item => ({
-        action: item.action,
-        time: formatTimeAgo(item.time),
-        type: item.type,
-      }));
-      setHistory(recentHistory);
-    }, []);
-
+    const historyLog = userHistory.length > 0 ? userHistory : [
+      { action: "No history found. Start exploring to see logs here.", time: "Just now", type: "System" },
+    ];
 
     return (
       <div className="min-h-screen w-full bg-black text-white p-4 md:p-10 relative overflow-hidden">
@@ -232,13 +224,12 @@ export default function ProfileModule() {
               </div>
             </div>
             <button 
-              onClick={() => {
-                setIsAuthenticated(false);
+              onClick={() => { 
+                setIsAuthenticated(false); 
                 setIsOtpStep(false);
                 setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""});
-                logAction("Authentication", "User signed out");
                 localStorage.removeItem("nyaya_user");
-              }}
+              }} 
               className="px-8 py-3 bg-[#111] hover:bg-red-600 border border-red-600/30 rounded-xl text-white font-google transition-all flex items-center gap-2 group"
             >
               <span className="group-hover:translate-x-1 transition-transform">Sign Out</span>
@@ -277,7 +268,7 @@ export default function ProfileModule() {
                 {modules.map((mod, i) => (
                   <div key={i} className="space-y-3">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-300 font-medium">{mod.name || (mod as any).label}</span>
+                      <span className="text-gray-300 font-medium">{mod.name}</span>
                       <span className="text-red-500 font-bold">{mod.progress}%</span>
                     </div>
                     <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
@@ -285,7 +276,7 @@ export default function ProfileModule() {
                         initial={{ width: 0 }}
                         animate={{ width: `${mod.progress}%` }}
                         transition={{ duration: 1, delay: 0.5 + (i * 0.2) }}
-                        className={`h-full ${mod.color} rounded-full relative`}
+                        className={`h-full ${mod.color || "bg-red-600"} rounded-full relative`}
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 animate-pulse" />
                       </motion.div>
@@ -300,7 +291,7 @@ export default function ProfileModule() {
               <h2 className="text-2xl font-google font-bold ml-2">History Log</h2>
               <div className="bg-[#1a1a1b]/50 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
                 <div className="divide-y divide-white/5">
-                  {history.map((item, i) => (
+                  {historyLog.map((item, i) => (
                     <motion.div 
                       key={i}
                       initial={{ opacity: 0, x: 20 }}

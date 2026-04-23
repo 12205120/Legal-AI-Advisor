@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getBailApplications, BailApplication } from "../../../lib/bail_store";
 import { LegalService, ArgumentAnalysis } from "../../../lib/legal_service";
 import VRMAvatar from "../../../components/ui/VRMAvatar";
-import { logAction } from "../../../lib/history_store";
 
 export default function Virtual() {
   const searchParams = useSearchParams();
@@ -148,7 +147,6 @@ export default function Virtual() {
   const startCourtSession = async () => {
     setShowLinkModal(false);
     setSetupPhase(false);
-    logAction("Simulation", "Virtual Court Simulation: " + selectedLaw);
 
     // Load bail vault
     setSavedBails(getBailApplications());
@@ -259,7 +257,7 @@ export default function Virtual() {
           throw new Error("Scenario generation failed");
         }
       } catch {
-        setScenario("The backend AI connection is currently unavailable. You are now in a local simulated courtroom environment. All responses will be handled by the local judicial engine. You are participating in a mock trial for a generic " + selectedLaw + " dispute. Proceed with your arguments.");
+        setScenario("[OFFLINE FALLBACK STATE]: The backend AI connection failed. You are currently in an offline simulated courtroom environment. All responses will be handled by the local engine. You are participating in a mock trial for a generic " + selectedLaw + " dispute. Proceed with your arguments.");
       }
       setIsLoadingScenario(false);
     };

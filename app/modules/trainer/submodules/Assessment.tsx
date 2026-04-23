@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { logAction } from "../../../lib/history_store";
 
 interface QuestionData {
   question: string;
@@ -30,32 +29,54 @@ export default function Assessment() {
     setSelectedOption(null);
     setIsCorrect(null);
 
+    const localQuestions: Record<string, QuestionData[]> = {
+      "IPC-BNS": [
+        {
+          question: "Under the Bharatiya Nyaya Sanhita (BNS), what is the maximum punishment for 'Theft' in a dwelling house?",
+          options: ["3 years imprisonment", "5 years imprisonment", "7 years imprisonment", "10 years imprisonment"],
+          correctAnswer: "7 years imprisonment",
+          explanation: "BNS Section 305 specifies that whoever commits theft in any building, tent or vessel used as a human dwelling shall be punished with imprisonment up to 7 years and fine."
+        }
+      ],
+      "CrPC-BNSS": [
+        {
+          question: "Which section of the BNSS deals with the power of the Court to release an accused on bail in non-bailable offences?",
+          options: ["Section 437", "Section 480", "Section 482", "Section 484"],
+          correctAnswer: "Section 480",
+          explanation: "Section 480 of the Bharatiya Nagarik Suraksha Sanhita (BNSS) provides the provisions for when bail may be taken in case of non-bailable offences."
+        }
+      ]
+    };
+
+    const defaultQuestion: QuestionData = {
+      question: `Regarding ${law}, what is a primary requirement for establishing criminal liability?`,
+      options: ["Actus Reus only", "Mens Rea only", "Both Actus Reus and Mens Rea", "Neither"],
+      correctAnswer: "Both Actus Reus and Mens Rea",
+      explanation: "A fundamental principle of criminal law (including BNS) is 'actus non facit reum nisi mens sit rea' - the act does not make a person guilty unless the mind is also guilty."
+    };
+
+    const fallbackQuestion = (localQuestions[law] && localQuestions[law][0]) || defaultQuestion;
+
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/generate_assessment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ law: law, difficulty: difficulty }),
       });
-      if (!res.ok) throw new Error("Backend API Failed");
-      const data = await res.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
+      if (res.ok) {
+        const data = await res.json();
+        setQuestionData(data.error ? fallbackQuestion : data);
       } else {
-        setQuestionData(data);
+        setQuestionData(fallbackQuestion);
       }
     } catch (error) {
-       console.error(error);
-       setTimeout(() => {
-         setQuestionData({
-           question: `A simulated ${difficulty} question concerning ${law}. Which of the following is correct regarding the core premise of this law?`,
-           options: ["Option A: It is fundamentally strict.", "Option B: It is lenient in all cases.", "Option C: It depends on the case facts.", "Option D: None of the above"],
-           correctAnswer: "Option C: It depends on the case facts.",
-           explanation: "This is a simulated offline explanation because the backend AI is unavailable. In most cases under " + law + ", context is everything.",
-         });
-       }, 1000);
+      setQuestionData(fallbackQuestion);
     } finally {
       setLoading(false);
+      // Save to History
+      import("@/app/lib/history").then(m => {
+        m.addHistory("Assessment", `Completed ${difficulty} assessment on ${law}`);
+      });
     }
   };
 
@@ -64,7 +85,6 @@ export default function Assessment() {
     
     setSelectedOption(option);
     setIsCorrect(option === questionData.correctAnswer);
-    logAction("Assessment", "Completed assessment on " + law);
   };
 
   return (
