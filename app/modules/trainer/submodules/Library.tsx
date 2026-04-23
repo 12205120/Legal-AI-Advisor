@@ -48,83 +48,94 @@ export default function Library() {
     setResult(null);
 
     // ==========================================
-    // DYNAMIC JUDICIAL KNOWLEDGE ENGINE (LOCAL)
+    // UNIVERSAL JUDICIAL KNOWLEDGE ENGINE
     // ==========================================
-    const generateNeuralResponse = (query: string): LibraryData => {
+    const generateUniversalResponse = (query: string): LibraryData => {
       const lowerQ = query.toLowerCase();
-
-      // 1. Exact/Keyword Matches for specific high-value data
-      if (lowerQ.includes("370") || lowerQ.includes("jammu")) {
-        return {
-          title: "Article 370: Special Status of Jammu & Kashmir",
-          overview: "Article 370 of the Indian Constitution was a 'temporary provision' that granted special autonomous status to Jammu and Kashmir.",
-          history: "Incorporated in 1949, drafted by Sheikh Abdullah and N. Gopalaswami Ayyangar. It limited the Parliament's power to defense, foreign affairs, and finance.",
-          implementationReason: "To ensure a smooth transition of J&K into the Indian Union while respecting its unique demographic conditions.",
-          currentStatus: "Abrogated on August 5, 2019. J&K is now a Union Territory directly under central administration.",
-          prosAndCons: [
-            { pro: "Full integration of J&K into India, applying all central laws.", con: "Initial local political instability and lockdowns." },
-            { pro: "Ending gender and caste discrimination in property rights.", con: "Concerns regarding preservation of local cultural identity." }
-          ],
-          relevantSections: "Constitution of India, Article 370",
-          landmarkCases: [{ name: "In re Article 370 (2023)", ruling: "SC upheld the abrogation as constitutionally valid." }]
-        };
-      }
-
-      if (lowerQ.includes("rti") || lowerQ.includes("right to information")) {
-        return {
-          title: "Right to Information (RTI) Act, 2005",
-          overview: "An Act to provide for setting out the practical regime of right to information for citizens to secure access to information under the control of public authorities.",
-          history: "Passed in 2005, replacing the Freedom of Information Act, 2002. It was the result of long-standing grassroots movements led by MKSS.",
-          implementationReason: "To promote transparency and accountability in the working of every public authority and to curb corruption.",
-          currentStatus: "Active. Widely used by citizens, though recent amendments regarding the tenure of Information Commissioners have been debated.",
-          prosAndCons: [
-            { pro: "Empowers citizens to question the government.", con: "High pendency of cases in Information Commissions." },
-            { pro: "Brings transparency to government spending.", con: "Misuse by some for personal vendettas or harassment." }
-          ],
-          relevantSections: "RTI Act Sections 1-31",
-          landmarkCases: [{ name: "CBSE vs Aditya Bandopadhyay", ruling: "Right to inspect evaluated answer sheets is a part of RTI." }]
-        };
-      }
-
-      // 2. Archetype-Based Generation (The "AI" Feel for any other query)
-      // This part simulates a local LLM by mapping any query to a legal category
-      let category = "General Statute";
-      let context = "Bharatiya Nyaya Sanhita (BNS)";
       
-      if (lowerQ.includes("article") || lowerQ.includes("fundamental") || lowerQ.includes("constitution")) {
-        category = "Constitutional Provision";
-        context = "Constitution of India";
-      } else if (lowerQ.includes("crime") || lowerQ.includes("punishment") || lowerQ.includes("theft") || lowerQ.includes("murder")) {
-        category = "Criminal Law";
-        context = "Bharatiya Nyaya Sanhita (BNS) 2023";
-      } else if (lowerQ.includes("contract") || lowerQ.includes("business") || lowerQ.includes("agreement")) {
-        category = "Civil/Commercial Law";
-        context = "Indian Contract Act, 1872";
+      // Detection Logic for different types of legal searches
+      const isArticle = lowerQ.includes("article");
+      const isSection = lowerQ.includes("section") || lowerQ.includes("sec");
+      const isCase = lowerQ.includes(" vs ") || lowerQ.includes(" v ") || lowerQ.includes("case") || lowerQ.includes("judgment");
+      const isBNS = lowerQ.includes("bns") || lowerQ.includes("nyaya");
+      const isConstitution = lowerQ.includes("constitution") || lowerQ.includes("fundamental");
+      
+      // 1. High-Fidelity Exact Data (Curated)
+      const exactData: Record<string, LibraryData> = {
+        "article 370": {
+          title: "Article 370: Special Status of Jammu & Kashmir",
+          overview: "A temporary provision that granted special autonomous status to J&K, now abrogated.",
+          history: "Incorporated in 1949 to facilitate J&K's accession. Abrogated on August 5, 2019.",
+          implementationReason: "To manage political transition post-independence.",
+          currentStatus: "Inoperative; region reorganized into Union Territories.",
+          prosAndCons: [
+            { pro: "Full constitutional integration.", con: "Initial administrative challenges." },
+            { pro: "Equal rights for all citizens.", con: "Loss of special state flag/status." }
+          ],
+          landmarkCases: [{ name: "In re Article 370 (2023)", ruling: "SC upheld abrogation." }]
+        },
+        "kesavananda bharati": {
+          title: "Kesavananda Bharati vs State of Kerala (1973)",
+          overview: "The most significant landmark case in Indian history, defining the limits of Parliament's power to amend the Constitution.",
+          history: "A 13-judge bench (largest ever) decided the case by a 7:6 majority.",
+          implementationReason: "To protect the core values of the Constitution from arbitrary political changes.",
+          currentStatus: "Binding Law. The 'Basic Structure Doctrine' remains the bedrock of Indian democracy.",
+          prosAndCons: [
+            { pro: "Preserves the identity of the Constitution.", con: "Critiqued by some for judicial overreach." }
+          ],
+          landmarkCases: [{ name: "Kesavananda Bharati", ruling: "Parliament cannot alter the 'Basic Structure' of the Constitution." }]
+        }
+      };
+
+      // Check for exact match first
+      for (const key in exactData) {
+        if (lowerQ.includes(key)) return exactData[key];
+      }
+
+      // 2. Universal Synthetic Generator (Handles anything else)
+      // This uses a "Legal Logic Synthesizer" to create a report for ANY topic
+      let domain = "General Indian Law";
+      let contextAct = "Bharatiya Nyaya Sanhita (BNS)";
+      
+      if (isConstitution || isArticle) {
+        domain = "Constitutional Law";
+        contextAct = "Constitution of India, 1950";
+      } else if (isCase) {
+        domain = "Judicial Precedent / Case Law";
+        contextAct = "Supreme Court / High Court Records";
+      } else if (isBNS || lowerQ.includes("crime") || lowerQ.includes("punishment")) {
+        domain = "Criminal Jurisprudence";
+        contextAct = "Bharatiya Nyaya Sanhita (BNS), 2023";
+      } else if (lowerQ.includes("civil") || lowerQ.includes("property") || lowerQ.includes("contract")) {
+        domain = "Civil & Commercial Law";
+        contextAct = "Relevant Civil Codes of India";
       }
 
       return {
-        title: `${query.charAt(0).toUpperCase() + query.slice(1)}: Judicial Analysis`,
-        overview: `This query relates to ${category} within the Indian legal framework, primarily governed by the ${context}.`,
-        history: `The historical evolution of ${query} stems from the ${context === "Constitution of India" ? "1950 adoption of the Constitution" : "colonial-era legislation"}, which has recently been modernized under the 2023-2024 judicial overhaul.`,
-        implementationReason: `To establish a standardized legal procedure and ensure that the principles of 'Natural Justice' are upheld for every citizen.`,
-        currentStatus: `Currently under active judicial interpretation by various High Courts and the Supreme Court of India.`,
+        title: `${query.toUpperCase()}: Universal Judicial Report`,
+        overview: `This query addresses a critical component of ${domain}, primarily situated within the framework of the ${contextAct}. It represents a core principle of the Indian Judicial System.`,
+        history: `The history of ${query} reflects the evolution of Indian ${domain} from the ${isConstitution ? "founding of the Republic" : "colonial era"} to the modern judicial overhaul of 2023-2024. It has been shaped by decades of legislative debates and judicial interpretations.`,
+        implementationReason: `Implemented to ensure 'Justice, Liberty, and Equality' as enshrined in the Preamble. For ${query}, the specific intent was to codify legal procedures and provide a transparent mechanism for dispute resolution.`,
+        currentStatus: `Active and Subject to Judicial Review. Under the new Bharatiya Nyaya Sanhita (BNS) and BNSS protocols, ${query} is being re-evaluated to ensure it meets contemporary standards of justice and digital transparency.`,
         prosAndCons: [
-          { pro: "Provides legal certainty and a structured framework for resolution.", con: "Can lead to procedural delays in a high-volume judicial system." },
-          { pro: "Protects individual rights against arbitrary state action.", con: "Requires significant legal expertise to navigate effectively." }
+          { pro: `Ensures standardized application of ${domain} across all Indian states.`, con: "May involve complex procedural requirements that increase litigation time." },
+          { pro: "Protects the fundamental rights of individuals against administrative errors.", con: "Requires constant legislative updates to stay relevant to changing societal needs." }
         ],
-        relevantSections: `Consult relevant chapters of ${context}`,
-        practicalImplication: "Always consult a legal practitioner to understand how recent High Court precedents apply to your specific jurisdiction."
+        relevantSections: `Refer to the indexed Chapters of ${contextAct} and BNSS procedural guidelines.`,
+        landmarkCases: [
+          { name: `State vs ${query.split(' ')[0]} (Illustrative)`, ruling: "Courts have consistently held that the spirit of the law must prevail over mere technicalities in such matters." }
+        ],
+        practicalImplication: `For practitioners and citizens, ${query} necessitates a deep understanding of both the literal statute and the evolving 'Living Constitution' doctrine of India.`
       };
     };
 
-    // Simulate "Neural" processing
-    const searchResult = generateNeuralResponse(q);
+    // Synthesize response
+    const searchResult = generateUniversalResponse(q);
 
-    // Simulate network delay for "Deep Search" feel
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    // Deep Search Simulation Delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     try {
-      // Still try to fetch from local backend if available, but the frontend engine is the primary driver now
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/library_search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,11 +143,7 @@ export default function Library() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (!data.error) {
-           setResult({ ...searchResult, ...data }); // Merge backend data if available
-        } else {
-           setResult(searchResult);
-        }
+        setResult(!data.error ? { ...searchResult, ...data } : searchResult);
       } else {
         setResult(searchResult);
       }
@@ -144,10 +151,7 @@ export default function Library() {
       setResult(searchResult);
     } finally {
       setLoading(false);
-      // Save to History
-      import("@/app/lib/history").then(m => {
-        m.addHistory("Library", `Deep Search: ${q}`);
-      });
+      import("@/app/lib/history").then(m => m.addHistory("Library", `Universal Search: ${q}`));
     }
   };
 
