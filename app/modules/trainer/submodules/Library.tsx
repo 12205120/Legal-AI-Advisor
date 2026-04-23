@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { logAction } from "../../../lib/history_store";
+import { logAction } from "../../lib/history_store";
 
 interface LandmarkCase {
   name: string;
@@ -51,7 +51,6 @@ export default function Library() {
     setQuery(q);
     setLoading(true);
     setResult(null);
-    try {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/library_search`, {
         method: "POST",

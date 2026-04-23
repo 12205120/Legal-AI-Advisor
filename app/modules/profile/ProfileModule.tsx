@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getStats, getHistory, formatTimeAgo, logAction } from "../../../lib/history_store";
+import { getStats, getHistory, formatTimeAgo, logAction } from "../../lib/history_store";
 
 const lawColleges = [
   "National Law School of India University (NLSIU), Bengaluru",
