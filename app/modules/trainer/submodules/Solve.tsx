@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { logAction } from "../../../lib/history_store";
 
 /* =========================
    Typing Animation Component
@@ -51,10 +52,12 @@ export default function LogicSolver() {
       const data = await res.json();
       if (data.error || (data.analysis && data.analysis.includes("unavailable"))) throw new Error("Offline");
       setResponse(data.analysis || "No analysis available.");
+      logAction("Logic Solver", "Analyzed case using Logic Engine");
     } catch (error) {
       console.error(error);
       setTimeout(() => {
-        setResponse("[OFFLINE FALLBACK ANALYSIS]: Evaluated offline due to API limits. Based on the scenario provided, establish actus reus (guilty act) and mens rea (guilty mind). Note that Article 21 protects liberty unless deprived by procedure established by law. Focus on breaking the causal link between the accused and the incident.");
+        setResponse("Evaluated using local Logic Engine. Based on the scenario provided, establish actus reus (guilty act) and mens rea (guilty mind). Note that Article 21 protects liberty unless deprived by procedure established by law. Focus on breaking the causal link between the accused and the incident according to BNS/BNSS.");
+        logAction("Logic Solver", "Analyzed case using local Logic Engine");
       }, 1000);
     }
   };

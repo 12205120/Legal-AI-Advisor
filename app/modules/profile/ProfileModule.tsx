@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStats, getHistory, formatTimeAgo, logAction } from "../../../lib/history_store";
 
 const lawColleges = [
   "National Law School of India University (NLSIU), Bengaluru",
@@ -173,25 +174,39 @@ export default function ProfileModule() {
 
   // Dashboard View post-login
   if (isAuthenticated) {
-    const stats = [
-      { label: "Total Usage", value: "24.5", unit: "Hrs", icon: "🕒", color: "from-red-600/20 to-black/40" },
-      { label: "Learnings", value: "12", unit: "Modules", icon: "📚", color: "from-yellow-600/20 to-black/40" },
-      { label: "Cases Solved", value: "156", unit: "Cases", icon: "⚖️", color: "from-red-700/20 to-black/40" },
-      { label: "AI Interactions", value: "842", unit: "Queries", icon: "🤖", color: "from-yellow-500/20 to-black/40" },
-    ];
+    const [stats, setStats] = useState([]);
+    const [modules, setModules] = useState([]);
+    const [history, setHistory] = useState([]);
 
-    const modules = [
-      { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-red-600" },
-      { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-yellow-600" },
-      { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-red-500" },
-    ];
+    useEffect(() => {
+      // Load stats from local storage
+      const userStats = getStats();
+      const statsArray = [
+        { label: "Total Usage", value: userStats.usageHours.toFixed(1), unit: "Hrs", icon: "🕒", color: "from-red-600/20 to-black/40" },
+        { label: "Learnings", value: userStats.modulesLearned, unit: "Modules", icon: "📚", color: "from-yellow-600/20 to-black/40" },
+        { label: "Cases Solved", value: userStats.casesSolved, unit: "Cases", icon: "⚖️", color: "from-red-700/20 to-black/40" },
+        { label: "AI Interactions", value: userStats.aiInteractions, unit: "Queries", icon: "🤖", color: "from-yellow-500/20 to-black/40" },
+      ];
+      setStats(statsArray);
 
-    const history = [
-      { action: "Consulted AI Sara on CrPC Sec 144", time: "2 hours ago", type: "AI Consult" },
-      { action: "Completed Module: BNS Fundamentals", time: "5 hours ago", type: "Learning" },
-      { action: "Drafted Legal Notice: Rent Dispute", time: "Yesterday", type: "Drafting" },
-      { action: "Virtual Court Simulation: Session 4", time: "2 days ago", type: "Simulation" },
-    ];
+      // Modules are static, keep as is
+      const modulesArray = [
+        { name: "Bharatiya Nyaya Sanhita (BNS)", progress: 75, color: "bg-red-600" },
+        { label: "Bharatiya Nagarik Suraksha Sanhita (BNSS)", progress: 45, color: "bg-yellow-600" },
+        { label: "Bharatiya Sakshya Adhiniyam (BSA)", progress: 90, color: "bg-red-500" },
+      ];
+      setModules(modulesArray);
+
+      // Load and sort history
+      const rawHistory = getHistory().sort((a, b) => b.time - a.time);
+      const recentHistory = rawHistory.map(item => ({
+        action: item.action,
+        time: formatTimeAgo(item.time),
+        type: item.type,
+      }));
+      setHistory(recentHistory);
+    }, []);
+
 
     return (
       <div className="min-h-screen w-full bg-black text-white p-4 md:p-10 relative overflow-hidden">
@@ -217,12 +232,13 @@ export default function ProfileModule() {
               </div>
             </div>
             <button 
-              onClick={() => { 
-                setIsAuthenticated(false); 
+              onClick={() => {
+                setIsAuthenticated(false);
                 setIsOtpStep(false);
                 setFormData({firstName: "", lastName: "", email: "", password: "", otp: "", college: "", registrationNo: "", govtId: "", judicialId: ""});
+                logAction("Authentication", "User signed out");
                 localStorage.removeItem("nyaya_user");
-              }} 
+              }}
               className="px-8 py-3 bg-[#111] hover:bg-red-600 border border-red-600/30 rounded-xl text-white font-google transition-all flex items-center gap-2 group"
             >
               <span className="group-hover:translate-x-1 transition-transform">Sign Out</span>

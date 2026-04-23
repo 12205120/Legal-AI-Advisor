@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { logAction } from "../../../lib/history_store";
 
 const indianLaws = [
   "Indian Penal Code (IPC) / Bharatiya Nyaya Sanhita (BNS)",
@@ -48,6 +49,7 @@ export default function Generator() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       setScenario(data);
+      logAction("Learning", "Generated scenario for: " + selectedLaw);
     } catch (error) {
       console.error("Failed to generate scenario:", error);
       setTimeout(() => {
@@ -58,12 +60,13 @@ export default function Generator() {
           accusedName: "John Doe (Simulated)",
           victimName: "Jane Smith (Simulated)",
           sections: "Relevant Sections of " + selectedLaw,
-          summary: "[OFFLINE FALLBACK]: The AI API is currently unreachable. This is a simulated offline scenario. The accused is formally charged under the legal domain of " + selectedLaw + " pending further investigation.",
+          summary: "The AI API is currently unreachable. This is a simulated offline scenario. The accused is formally charged under the legal domain of " + selectedLaw + " pending further investigation.",
           prosecution: "The prosecution argues that the provided evidence clearly establishes fault beyond a reasonable doubt, relying on circumstantial factors.",
           defense: "The defense vehemently opposes the charges, citing lack of direct evidence and procedural irregularities.",
           keyEvidence: "- Exhibit A: Cyber logs\n- Exhibit B: Witness testimony\n- Exhibit C: Forensic report",
           charges: "Multiple simulated charges under " + selectedLaw,
         });
+        logAction("Learning", "Generated offline scenario for: " + selectedLaw);
       }, 1200);
     } finally {
       setLoading(false);

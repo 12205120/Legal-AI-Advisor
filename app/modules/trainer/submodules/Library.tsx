@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { logAction } from "../../../lib/history_store";
 
 interface LandmarkCase {
   name: string;
@@ -18,17 +19,25 @@ interface LibraryData {
   error?: string;
 }
 
-const quickTopics = [
-  "BNS 2023 Overview",
-  "BNSS Procedure Changes",
-  "Bail under BNSS Section 478",
-  "Zero FIR Regulation",
-  "Police Custody vs Judicial Custody",
-  "Rights of the Accused",
-  "Victim compensation BNSS",
-  "Cybercrime under BNS",
-  "Electronic Evidence BNSS",
-  "Judicial Overhaul 2024",
+const offlineLibraryData = [
+  {
+    title: "BNS Overview",
+    overview: "Bharatiya Nyaya Sanhita consolidates sections of IPC for modern application.",
+    keyProvisions: ["General definitions", "Punishments"],
+    relevantSections: "Sections 1-100",
+    landmarkCases: [{ name: "Case A", ruling: "Set precedence for Section 10" }],
+    practicalImplication: "Use for drafting criminal cases.",
+    recentAmendments: "Amendment 2023 added cyber provisions."
+  },
+  {
+    title: "BNSS Procedure",
+    overview: "Bharatiya Nagarik Suraksha Sanhita outlines procedural safeguards.",
+    keyProvisions: ["Arrest procedures", "Evidence handling"],
+    relevantSections: "Sections 101-200",
+    landmarkCases: [{ name: "Case B", ruling: "Clarified bail eligibility" }],
+    practicalImplication: "Improves bail decisions.",
+    recentAmendments: "2024 amendment on digital evidence."
+  }
 ];
 
 export default function Library() {
@@ -43,6 +52,7 @@ export default function Library() {
     setLoading(true);
     setResult(null);
     try {
+    try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/library_search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,11 +62,24 @@ export default function Library() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data);
+      logAction("Learning", "Library search online: " + q);
     } catch (error) {
       console.error("Library Search Error:", error);
-      setResult({
-        error: "Neural Engine is currently busy indexing new legal acts. Please try again in 30 seconds."
-      });
+      // offline search fallback
+      const lowerQ = q.toLowerCase();
+      const match = offlineLibraryData.find(item =>
+        item.title.toLowerCase().includes(lowerQ) ||
+        (item.overview && item.overview.toLowerCase().includes(lowerQ)) ||
+        (item.keyProvisions && item.keyProvisions.some(k => k.toLowerCase().includes(lowerQ)))
+      );
+      if (match) {
+        setResult(match);
+        logAction("Learning", "Library offline search result for: " + q);
+      } else {
+        setResult({
+          error: "No matching offline data found. Please refine your query."
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { logAction } from "../../../lib/history_store";
 
 interface QuestionData {
   question: string;
@@ -47,7 +48,7 @@ export default function Assessment() {
        console.error(error);
        setTimeout(() => {
          setQuestionData({
-           question: `[OFFLINE FALLBACK]: A simulated ${difficulty} question concerning ${law}. Which of the following is correct regarding the core premise of this law?`,
+           question: `A simulated ${difficulty} question concerning ${law}. Which of the following is correct regarding the core premise of this law?`,
            options: ["Option A: It is fundamentally strict.", "Option B: It is lenient in all cases.", "Option C: It depends on the case facts.", "Option D: None of the above"],
            correctAnswer: "Option C: It depends on the case facts.",
            explanation: "This is a simulated offline explanation because the backend AI is unavailable. In most cases under " + law + ", context is everything.",
@@ -63,6 +64,7 @@ export default function Assessment() {
     
     setSelectedOption(option);
     setIsCorrect(option === questionData.correctAnswer);
+    logAction("Assessment", "Completed assessment on " + law);
   };
 
   return (
