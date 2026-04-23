@@ -30,7 +30,7 @@ export const getHistory = (): HistoryEntry[] => {
 };
 
 export const getUsageStats = () => {
-  if (typeof window === "undefined") return { labels: [], values: [] };
+  if (typeof window === "undefined") return [];
   const stats = JSON.parse(localStorage.getItem("nyaya_stats") || "{}");
   const total = Object.values(stats).reduce((a: any, b: any) => a + b, 0) as number;
   
