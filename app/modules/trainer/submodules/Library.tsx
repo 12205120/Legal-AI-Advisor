@@ -10,22 +10,26 @@ interface LandmarkCase {
 interface LibraryData {
   title?: string;
   overview?: string;
+  history?: string;
+  currentStatus?: string;
+  prosAndCons?: { pro: string; con: string }[];
   keyProvisions?: string[];
   relevantSections?: string;
   landmarkCases?: LandmarkCase[];
   practicalImplication?: string;
   recentAmendments?: string;
+  implementationReason?: string;
+  statesSupported?: string;
   error?: string;
 }
 
 const quickTopics = [
+  "Article 370",
   "BNS 2023 Overview",
   "BNSS Procedure Changes",
   "Bail under BNSS Section 478",
   "Zero FIR Regulation",
-  "Police Custody vs Judicial Custody",
   "Rights of the Accused",
-  "Victim compensation BNSS",
   "Cybercrime under BNS",
   "Electronic Evidence BNSS",
   "Judicial Overhaul 2024",
@@ -44,6 +48,25 @@ export default function Library() {
     setResult(null);
 
     const localData: Record<string, LibraryData> = {
+      "Article 370": {
+        title: "Article 370: Special Status of Jammu & Kashmir",
+        overview: "Article 370 of the Indian Constitution was a 'temporary provision' that granted special autonomous status to Jammu and Kashmir, allowing it to have its own constitution and flag.",
+        history: "Drafted by Sheikh Abdullah and N. Gopalaswami Ayyangar, it was incorporated in 1949. It limited the Parliament's power to make laws for J&K to only defense, foreign affairs, finance, and communications.",
+        implementationReason: "To ensure a smooth transition of the princely state of J&K into the Indian Union while respecting its unique demographic and political conditions post-1947.",
+        currentStatus: "Abrogated on August 5, 2019, via a Presidential Order. J&K was reorganized into two Union Territories: Jammu & Kashmir and Ladakh.",
+        prosAndCons: [
+          { pro: "Full integration of J&K into India, applying all central laws.", con: "Initial local political instability and communication lockdowns." },
+          { pro: "Economic development and investment opportunities in the region.", con: "Concerns regarding the preservation of local cultural identity." },
+          { pro: "Ending gender and caste discrimination in property rights.", con: "Legal challenges regarding the methodology of abrogation." }
+        ],
+        relevantSections: "Constitution of India, Article 370 (Now Inoperative)",
+        landmarkCases: [
+          { name: "Prem Nath Kaul vs State of J&K (1959)", ruling: "Affirmed the plenary powers of the Sadr-i-Riyasat." },
+          { name: "In re Article 370 (2023)", ruling: "Supreme Court upheld the abrogation as constitutionally valid." }
+        ],
+        practicalImplication: "Residents of J&K now enjoy the same rights and duties as any other Indian citizen, including the Right to Education and reservation benefits.",
+        statesSupported: "The reorganization was supported by various states and political parties citing national security and administrative efficiency."
+      },
       "BNS 2023 Overview": {
         title: "Bharatiya Nyaya Sanhita (BNS), 2023",
         overview: "The BNS replaces the Indian Penal Code (IPC), 1860. It aims to modernize the penal provisions and focus on justice rather than punishment.",
@@ -73,23 +96,18 @@ export default function Library() {
         ],
         practicalImplication: "Police and Judiciary must now strictly adhere to timelines for filing charge sheets and delivering judgments.",
         recentAmendments: "Replaces CrPC with effect from July 1, 2024."
-      },
-      "Bail under BNSS Section 478": {
-        title: "Bail Provisions in BNSS",
-        overview: "Section 478 and surrounding sections of BNSS modernize the bail process, emphasizing the rights of the accused while balancing public safety.",
-        keyProvisions: [
-          "Simplified procedures for first-time offenders.",
-          "Clarity on 'Anticipatory Bail' under Section 482.",
-          "Provisions for medical examination of the accused."
-        ],
-        relevantSections: "BNSS Sections 478-490",
-        landmarkCases: [
-          { name: "Satender Kumar Antil vs CBI", ruling: "Reiterated that bail is the rule and jail is the exception." }
-        ],
-        practicalImplication: "Easier access to bail for minor offences, reducing prison overcrowding.",
-        recentAmendments: "July 2024 implementation."
       }
     };
+
+    // Keyword mapping for "Article 370"
+    let matchedKey = q;
+    if (q.toLowerCase().includes("370") || q.toLowerCase().includes("jammu") || q.toLowerCase().includes("kashmir")) {
+      matchedKey = "Article 370";
+    } else if (q.toLowerCase().includes("bns") || q.toLowerCase().includes("penal")) {
+      matchedKey = "BNS 2023 Overview";
+    } else if (q.toLowerCase().includes("bnss") || q.toLowerCase().includes("procedure")) {
+      matchedKey = "BNSS Procedure Changes";
+    }
 
     const fallbackResult: LibraryData = {
       title: `Search Result: ${q}`,
@@ -103,7 +121,7 @@ export default function Library() {
       practicalImplication: "Always verify with the official Gazette notification for the latest updates."
     };
 
-    const searchResult = localData[q] || fallbackResult;
+    const searchResult = localData[matchedKey] || fallbackResult;
 
     // Simulate network delay for "Deep Search" feel
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -208,6 +226,63 @@ export default function Library() {
                     </div>
                   )}
                 </div>
+
+                {/* History & Implementation */}
+                {(result.history || result.implementationReason) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {result.history && (
+                      <div className="bg-black/40 border border-white/10 rounded-2xl p-6">
+                        <h3 className="text-[10px] text-cyan-400 uppercase tracking-widest font-black mb-3">Historical Context</h3>
+                        <p className="text-gray-300 text-sm leading-relaxed">{result.history}</p>
+                      </div>
+                    )}
+                    {result.implementationReason && (
+                      <div className="bg-black/40 border border-white/10 rounded-2xl p-6">
+                        <h3 className="text-[10px] text-orange-400 uppercase tracking-widest font-black mb-3">Rational Behind Implementation</h3>
+                        <p className="text-gray-300 text-sm leading-relaxed">{result.implementationReason}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Current Status & States Support */}
+                {(result.currentStatus || result.statesSupported) && (
+                  <div className="bg-gradient-to-br from-red-600/10 to-black border border-red-500/20 rounded-2xl p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div>
+                         <h3 className="text-[10px] text-red-500 uppercase tracking-widest font-black mb-2">Current Legal Status</h3>
+                         <p className="text-white text-sm font-bold">{result.currentStatus}</p>
+                       </div>
+                       {result.statesSupported && (
+                         <div>
+                           <h3 className="text-[10px] text-emerald-400 uppercase tracking-widest font-black mb-2">Administrative Support</h3>
+                           <p className="text-gray-400 text-sm">{result.statesSupported}</p>
+                         </div>
+                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pros & Cons */}
+                {result.prosAndCons && (
+                  <div className="bg-black/60 border border-white/5 rounded-2xl p-6">
+                    <h3 className="text-[10px] text-[#ecb31c] uppercase tracking-widest font-black mb-4">Constitutional Analysis (Pros & Cons)</h3>
+                    <div className="space-y-4">
+                       {result.prosAndCons.map((item, i) => (
+                         <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-white/5 pb-4 last:border-0">
+                            <div className="flex items-start gap-2">
+                              <span className="text-emerald-500 font-bold">✓</span>
+                              <p className="text-gray-400 text-xs">{item.pro}</p>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-red-500 font-bold">✗</span>
+                              <p className="text-gray-400 text-xs">{item.con}</p>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Key Provisions */}
                 {result.keyProvisions && (
